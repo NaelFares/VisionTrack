@@ -1,47 +1,102 @@
 @echo off
-REM Script de démarrage rapide pour Windows
+REM Script de démarrage automatique pour Windows
+REM Ce script permet de lancer VisionTrack avec juste Docker installé
 echo ========================================
-echo VisionTrack - Démarrage de l'application
+echo   VisionTrack - Lancement automatique
 echo ========================================
 echo.
 
 REM Vérifier si Docker est installé
+echo [1/6] Verification de Docker...
 docker --version >nul 2>&1
 if %errorlevel% neq 0 (
-    echo ERREUR: Docker n'est pas installé ou n'est pas dans le PATH
+    echo ERREUR: Docker n'est pas installe ou n'est pas dans le PATH
     echo Veuillez installer Docker Desktop pour Windows
+    echo https://www.docker.com/products/docker-desktop
     pause
     exit /b 1
 )
+echo      Docker est installe
+echo.
 
 REM Vérifier si Docker Compose est installé
 docker-compose --version >nul 2>&1
 if %errorlevel% neq 0 (
-    echo ERREUR: Docker Compose n'est pas installé
+    echo ERREUR: Docker Compose n'est pas installe
     echo Veuillez installer Docker Compose
     pause
     exit /b 1
 )
-
-echo Docker est installé ✓
+echo      Docker Compose est installe
 echo.
 
-REM Vérifier si c'est le premier lancement
-docker images | find "visiontrack" >nul
-if %errorlevel% neq 0 (
-    echo Premier lancement détecté - Build des images...
-    echo Cela peut prendre 5-10 minutes...
-    echo.
-    docker-compose build
-    if %errorlevel% neq 0 (
-        echo ERREUR lors du build
+REM Créer le fichier .env s'il n'existe pas
+echo [2/6] Configuration de l'environnement...
+if not exist .env (
+    echo      .env n'existe pas, creation depuis .env.example...
+    if exist .env.example (
+        copy .env.example .env >nul
+        echo      Fichier .env cree avec succes
+    ) else (
+        echo ERREUR: Le fichier .env.example est introuvable
         pause
         exit /b 1
     )
+) else (
+    echo      Fichier .env deja present
 )
-
-echo Démarrage des services...
 echo.
-docker-compose up
 
+REM Arrêter les services existants proprement
+echo [3/6] Arret des services existants...
+docker-compose down >nul 2>&1
+echo      Services arretes
+echo.
+
+REM Build des images
+echo [4/6] Construction des images Docker...
+echo      Cela peut prendre 5-10 minutes au premier lancement...
+docker-compose build
+if %errorlevel% neq 0 (
+    echo ERREUR: Echec lors de la construction des images
+    pause
+    exit /b 1
+)
+echo      Images construites avec succes
+echo.
+
+REM Démarrer les services en mode détaché
+echo [5/6] Demarrage des services...
+docker-compose up -d
+if %errorlevel% neq 0 (
+    echo ERREUR: Echec du demarrage des services
+    pause
+    exit /b 1
+)
+echo.
+
+REM Attendre que les services démarrent
+echo [6/6] Attente du demarrage des services...
+timeout /t 15 /nobreak >nul
+echo.
+
+REM Afficher le statut
+echo ========================================
+echo   Statut des services:
+echo ========================================
+docker-compose ps
+echo.
+
+echo ========================================
+echo   VisionTrack est pret !
+echo ========================================
+echo.
+echo Accedez a l'application:
+echo   - Frontend:  http://localhost:3000
+echo   - Backend:   http://localhost:8000/docs
+echo   - IA Service: http://localhost:8001/docs
+echo.
+echo Pour voir les logs:   docker-compose logs -f
+echo Pour arreter:         docker-compose down
+echo.
 pause

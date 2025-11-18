@@ -292,3 +292,53 @@
     gap: 0.5rem;
   }
 }
+
+/* Boutons d'export */
+.export-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 2rem;
+  flex-wrap: wrap;
+}
+
+.export-btn {
+  padding: 0.875rem 2rem;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 1rem;
+  text-decoration: none;
+  transition: var(--transition);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: var(--shadow-md);
+}
+
+.export-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.btn-primary.export-btn {
+  background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-purple) 100%);
+  color: white;
+}
+
+.btn-primary.export-btn:hover {
+  box-shadow: var(--shadow-glow-blue);
+}
+
+.btn-secondary.export-btn {
+  background: var(--bg-glass);
+  color: var(--primary-blue);
+  border: 2px solid var(--primary-blue);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.btn-secondary.export-btn:hover {
+  background: linear-gradient(135deg, rgba(91, 127, 255, 0.1) 0%, rgba(133, 96, 255, 0.1) 100%);
+  border-color: var(--primary-purple);
+  color: var(--primary-purple);
+}

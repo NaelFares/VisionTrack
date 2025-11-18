@@ -13,6 +13,10 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from ultralytics import YOLO
 
+# Configuration from environment variables
+YOLO_MODEL = os.getenv("YOLO_MODEL", "yolov8n.pt")
+VIDEO_CODEC = os.getenv("VIDEO_CODEC", "mp4v")
+
 # Initialisation de l'application FastAPI
 app = FastAPI(
     title="VisionTrack IA Service",
@@ -30,9 +34,9 @@ def get_model():
     """
     global model
     if model is None:
-        print("Chargement du modèle YOLOv8n...")
-        model = YOLO('yolov8n.pt')
-        print("Modèle YOLOv8n chargé avec succès!")
+        print(f"Chargement du modèle YOLO: {YOLO_MODEL}")
+        model = YOLO(YOLO_MODEL)
+        print(f"Modèle {YOLO_MODEL} chargé avec succès!")
     return model
 
 
@@ -154,7 +158,7 @@ async def detect_people(request: DetectRequest):
     print(f"Chemin de sortie pour vidéo annotée : {annotated_video_path}")
 
     # Créer le VideoWriter pour la vidéo annotée
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    fourcc = cv2.VideoWriter_fourcc(*VIDEO_CODEC)
     out = cv2.VideoWriter(str(annotated_video_path), fourcc, fps, (width, height))
 
     if not out.isOpened():

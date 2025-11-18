@@ -2,7 +2,7 @@
 # Image de base Python
 FROM python:3.11-slim
 
-# Installer les dépendances système nécessaires pour OpenCV
+# Installer les dépendances système nécessaires pour OpenCV et encodage H.264
 RUN apt-get update && apt-get install -y \
     libgl1 \
     libglib2.0-0 \
@@ -10,6 +10,8 @@ RUN apt-get update && apt-get install -y \
     libxext6 \
     libxrender-dev \
     libgomp1 \
+    ffmpeg \
+    libx264-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Définir le répertoire de travail

@@ -53,20 +53,25 @@ VisionTrack utilise une architecture microservices composée de 3 services indé
   - Lancement de l'analyse
 
 - **Page 2 : Résultats**
-  - Lecture de la vidéo analysée
+  - Lecture de la vidéo annotée avec détections
   - Affichage des détections en temps réel
   - Statistiques :
     - Total de personnes détectées
     - Pic simultané maximum
     - Frame du pic
   - Timeline visuelle des détections
+  - **Export des résultats** :
+    - 📥 Télécharger la vidéo annotée (.mp4)
+    - 📄 Exporter les statistiques (JSON)
 
 ### Backend (FastAPI)
 
 - `POST /upload-video` : Upload et stockage des vidéos
 - `POST /analyze` : Orchestration de l'analyse et calcul des statistiques
 - `GET /results/{video_id}` : Récupération des résultats
-- `GET /videos/{video_id}` : Streaming de la vidéo
+- `GET /videos/{video_id}` : Streaming de la vidéo annotée
+- `GET /export-video/{video_id}` : Téléchargement de la vidéo annotée
+- `GET /export-results/{video_id}` : Téléchargement des statistiques (JSON)
 
 ### Service IA (YOLOv8n)
 
@@ -99,7 +104,7 @@ docker ps
 
 ---
 
-## 🚀 Installation
+## 🚀 Installation et Démarrage
 
 ### Étape 1 : Cloner le projet (si depuis GitHub)
 
@@ -121,6 +126,9 @@ VisionTrack/
 ├── backend/
 ├── ia-service/
 ├── docker-compose.yml
+├── start.bat          # Script Windows
+├── start.sh           # Script Linux/Mac
+├── .env.example       # Template de configuration
 ├── .gitignore
 └── README.md
 ```
@@ -129,46 +137,60 @@ VisionTrack/
 
 ## 🎯 Utilisation
 
-### 🟢 Commandes à exécuter UNE SEULE FOIS (Premier lancement)
+### ⚡ Méthode Rapide (Recommandée)
 
-#### 1. Build de tous les containers
+**Pour lancer VisionTrack avec juste Docker installé, utilisez les scripts automatiques :**
+
+#### Windows
+```bash
+start.bat
+```
+
+#### Linux / Mac
+```bash
+chmod +x start.sh    # Une seule fois pour rendre le script exécutable
+./start.sh
+```
+
+**Ce que fait le script automatiquement :**
+1. ✅ Vérifie que Docker est installé
+2. ✅ Crée le fichier `.env` depuis `.env.example` si nécessaire
+3. ✅ Arrête les services existants proprement
+4. ✅ Construit toutes les images Docker (5-10 minutes au premier lancement)
+5. ✅ Démarre tous les services
+6. ✅ Affiche les URLs d'accès
+
+**Résultat :**
+```
+========================================
+  VisionTrack est prêt !
+========================================
+
+Accédez à l'application:
+  - Frontend:   http://localhost:3000
+  - Backend:    http://localhost:8000/docs
+  - IA Service: http://localhost:8001/docs
+```
+
+---
+
+### 🔧 Méthode Manuelle (Alternative)
+
+Si vous préférez contrôler chaque étape manuellement :
+
+#### Première fois : Build de tous les containers
 
 ```bash
+# Créer le fichier .env
+cp .env.example .env
+
+# Build
 docker-compose build
 ```
 
 **Durée estimée** : 5-10 minutes (selon votre connexion internet)
 
-**Ce qui se passe** :
-- Téléchargement des images de base (Python, Node.js)
-- Installation des dépendances Python et npm
-- Téléchargement du modèle YOLOv8n (~6 MB)
-
-#### 2. Lancer l'application
-
-```bash
-docker-compose up
-```
-
-**Attendre que vous voyiez** :
-```
-visiontrack-frontend    | Compiled successfully!
-visiontrack-backend     | INFO:     Application startup complete.
-visiontrack-ia-service  | INFO:     Application startup complete.
-```
-
-#### 3. Accéder à l'application
-
-Ouvrez votre navigateur et allez sur :
-- **Frontend** : http://localhost:3000
-- **Backend API** : http://localhost:8000
-- **IA Service API** : http://localhost:8001
-
----
-
-### 🔄 Commandes à exécuter RÉGULIÈREMENT
-
-#### Démarrer l'application (après le premier build)
+#### Démarrer l'application
 
 ```bash
 # En mode attaché (voir les logs en direct)
@@ -289,7 +311,9 @@ docker exec -it visiontrack-frontend npm install <package_name>
 | POST | `/upload-video` | Upload une vidéo | FormData avec `file` |
 | POST | `/analyze` | Lance l'analyse | `{"video_id": "...", "zone": {...}}` |
 | GET | `/results/{video_id}` | Récupère les résultats | - |
-| GET | `/videos/{video_id}` | Stream la vidéo | - |
+| GET | `/videos/{video_id}` | Stream la vidéo annotée | - |
+| GET | `/export-video/{video_id}` | Télécharge la vidéo annotée | - |
+| GET | `/export-results/{video_id}` | Télécharge les statistiques JSON | - |
 
 ### Service IA (Port 8001)
 
@@ -490,8 +514,10 @@ docker exec -it visiontrack-ia-service python -c "from ultralytics import YOLO; 
 
 ### Stockage
 
-- Les vidéos et résultats sont stockés dans un volume Docker persistant
-- Pour libérer l'espace : `docker-compose down -v` (⚠️ efface toutes les données)
+- **Vidéos originales** : Supprimées automatiquement après l'analyse pour économiser l'espace
+- **Vidéos annotées** : Conservées dans le volume Docker, téléchargeables via le bouton d'export
+- **Résultats JSON** : Conservés dans le volume Docker, exportables via le bouton d'export
+- Pour libérer l'espace : `docker-compose down -v` (⚠️ efface toutes les données stockées)
 
 ---
 

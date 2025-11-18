@@ -22,25 +22,27 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Configuration from environment variables
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+IA_SERVICE_URL = os.getenv("IA_SERVICE_URL", "http://ia-service:8001")
+UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", "/app/shared/uploads"))
+RESULTS_DIR = Path(os.getenv("RESULTS_DIR", "/app/shared/results"))
+ANNOTATED_DIR = Path(os.getenv("ANNOTATED_DIR", "/app/shared/annotated"))
+MAX_VIDEO_SIZE_MB = int(os.getenv("MAX_VIDEO_SIZE_MB", "500"))
+
 # Configuration CORS pour permettre les requêtes du frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # En production, spécifier les domaines autorisés
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Configuration des répertoires de stockage
-UPLOAD_DIR = Path("/app/shared/uploads")
-RESULTS_DIR = Path("/app/shared/results")
-
 # Créer les répertoires s'ils n'existent pas
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-
-# URL du service IA (nom du service Docker)
-IA_SERVICE_URL = os.getenv("IA_SERVICE_URL", "http://ia-service:8001")
+ANNOTATED_DIR.mkdir(parents=True, exist_ok=True)
 
 
 # ========== Modèles Pydantic pour la validation des données ==========
@@ -241,6 +243,14 @@ async def analyze_video(request: AnalyzeRequest):
         print(f"ERREUR : Impossible de sauvegarder les résultats - {str(e)}")
         raise HTTPException(status_code=500, detail=f"Erreur lors de la sauvegarde des résultats : {str(e)}")
 
+    # Supprimer la vidéo originale pour économiser de l'espace
+    try:
+        Path(video_path).unlink()
+        print(f"✓ Vidéo originale supprimée : {video_path}")
+    except Exception as e:
+        print(f"ATTENTION : Impossible de supprimer la vidéo originale - {str(e)}")
+        # Ne pas lever d'exception, l'analyse est terminée
+
     print("="*80)
     print("BACKEND - FIN DE L'ANALYSE")
     print("="*80 + "\n")
@@ -331,6 +341,55 @@ async def get_annotated_video(video_id: str):
         annotated_path,
         media_type="video/mp4",
         filename=f"{video_id}_annotated.mp4"
+    )
+
+
+@app.get("/export-video/{video_id}")
+async def export_video(video_id: str):
+    """
+    Endpoint pour télécharger la vidéo annotée (export)
+    Ajoute header Content-Disposition pour forcer le téléchargement
+
+    Args:
+        video_id: ID de la vidéo
+
+    Returns:
+        Fichier vidéo annoté avec nom formaté
+    """
+    annotated_path = ANNOTATED_DIR / f"{video_id}_annotated.mp4"
+
+    if not annotated_path.exists():
+        raise HTTPException(status_code=404, detail="Vidéo annotée non trouvée")
+
+    return FileResponse(
+        annotated_path,
+        media_type="video/mp4",
+        filename=f"visiontrack_analysis_{video_id}.mp4",
+        headers={"Content-Disposition": f'attachment; filename="visiontrack_analysis_{video_id}.mp4"'}
+    )
+
+
+@app.get("/export-results/{video_id}")
+async def export_results(video_id: str):
+    """
+    Endpoint pour télécharger les résultats au format JSON (export)
+
+    Args:
+        video_id: ID de la vidéo
+
+    Returns:
+        Fichier JSON avec statistiques et détections
+    """
+    results_path = RESULTS_DIR / f"{video_id}.json"
+
+    if not results_path.exists():
+        raise HTTPException(status_code=404, detail="Résultats non trouvés")
+
+    return FileResponse(
+        results_path,
+        media_type="application/json",
+        filename=f"visiontrack_results_{video_id}.json",
+        headers={"Content-Disposition": f'attachment; filename="visiontrack_results_{video_id}.json"'}
     )
 
 

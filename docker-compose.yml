@@ -10,8 +10,8 @@ services:
     container_name: visiontrack-frontend
     ports:
       - "3000:3000"  # Mapper le port 3000 du container vers le port 3000 de l'hôte
-    environment:
-      - REACT_APP_API_URL=http://localhost:8000  # URL du backend pour le navigateur
+    env_file:
+      - .env  # Charger les variables d'environnement depuis .env
     volumes:
       - ./frontend:/app  # Montage pour le développement en temps réel
       - /app/node_modules  # Volume anonyme pour éviter de réécrire node_modules
@@ -30,8 +30,8 @@ services:
     container_name: visiontrack-backend
     ports:
       - "8000:8000"  # Mapper le port 8000 du container vers le port 8000 de l'hôte
-    environment:
-      - IA_SERVICE_URL=http://ia-service:8001  # URL du service IA dans le réseau Docker
+    env_file:
+      - .env  # Charger les variables d'environnement depuis .env
     volumes:
       - ./backend:/app  # Montage pour le développement en temps réel
       - shared-data:/app/shared  # Volume partagé pour les uploads et résultats
@@ -48,6 +48,8 @@ services:
     container_name: visiontrack-ia-service
     ports:
       - "8001:8001"  # Mapper le port 8001 du container vers le port 8001 de l'hôte
+    env_file:
+      - .env  # Charger les variables d'environnement depuis .env
     volumes:
       - ./ia-service:/app  # Montage pour le développement en temps réel
       - shared-data:/app/shared  # Volume partagé pour accéder aux vidéos uploadées

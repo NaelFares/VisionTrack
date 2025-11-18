@@ -1,17 +1,21 @@
 #!/bin/bash
-# Script de démarrage rapide pour Unix/Mac/Linux
+# Script de démarrage automatique pour Unix/Mac/Linux
+# Ce script permet de lancer VisionTrack avec juste Docker installé
 
 echo "========================================"
-echo "VisionTrack - Démarrage de l'application"
+echo "  VisionTrack - Lancement automatique"
 echo "========================================"
 echo ""
 
 # Vérifier si Docker est installé
+echo "[1/6] Vérification de Docker..."
 if ! command -v docker &> /dev/null; then
     echo "ERREUR: Docker n'est pas installé"
     echo "Veuillez installer Docker: https://docs.docker.com/get-docker/"
     exit 1
 fi
+echo "     Docker est installé ✓"
+echo ""
 
 # Vérifier si Docker Compose est installé
 if ! command -v docker-compose &> /dev/null; then
@@ -19,30 +23,74 @@ if ! command -v docker-compose &> /dev/null; then
     echo "Veuillez installer Docker Compose: https://docs.docker.com/compose/install/"
     exit 1
 fi
-
-echo "Docker est installé ✓"
+echo "     Docker Compose est installé ✓"
 echo ""
 
-# Vérifier si c'est le premier lancement
-if ! docker images | grep -q "visiontrack"; then
-    echo "Premier lancement détecté - Build des images..."
-    echo "Cela peut prendre 5-10 minutes..."
-    echo ""
-    docker-compose build
-    if [ $? -ne 0 ]; then
-        echo "ERREUR lors du build"
+# Créer le fichier .env s'il n'existe pas
+echo "[2/6] Configuration de l'environnement..."
+if [ ! -f .env ]; then
+    echo "     .env n'existe pas, création depuis .env.example..."
+    if [ -f .env.example ]; then
+        cp .env.example .env
+        echo "     Fichier .env créé avec succès ✓"
+    else
+        echo "ERREUR: Le fichier .env.example est introuvable"
         exit 1
     fi
+else
+    echo "     Fichier .env déjà présent ✓"
 fi
-
-echo "Démarrage des services..."
-echo ""
-echo "L'application sera accessible sur:"
-echo "  - Frontend: http://localhost:3000"
-echo "  - Backend:  http://localhost:8000"
-echo "  - IA:       http://localhost:8001"
-echo ""
-echo "Appuyez sur Ctrl+C pour arrêter"
 echo ""
 
-docker-compose up
+# Arrêter les services existants proprement
+echo "[3/6] Arrêt des services existants..."
+docker-compose down &> /dev/null
+echo "     Services arrêtés ✓"
+echo ""
+
+# Build des images
+echo "[4/6] Construction des images Docker..."
+echo "     Cela peut prendre 5-10 minutes au premier lancement..."
+docker-compose build
+if [ $? -ne 0 ]; then
+    echo "ERREUR: Échec lors de la construction des images"
+    exit 1
+fi
+echo "     Images construites avec succès ✓"
+echo ""
+
+# Démarrer les services en mode détaché
+echo "[5/6] Démarrage des services..."
+docker-compose up -d
+if [ $? -ne 0 ]; then
+    echo "ERREUR: Échec du démarrage des services"
+    exit 1
+fi
+echo ""
+
+# Attendre que les services démarrent
+echo "[6/6] Attente du démarrage des services..."
+sleep 15
+echo ""
+
+# Afficher le statut
+echo "========================================"
+echo "  Statut des services:"
+echo "========================================"
+docker-compose ps
+echo ""
+
+echo "========================================"
+echo "  VisionTrack est prêt !"
+echo "========================================"
+echo ""
+echo "Accédez à l'application:"
+echo "  - Frontend:   http://localhost:3000"
+echo "  - Backend:    http://localhost:8000/docs"
+echo "  - IA Service: http://localhost:8001/docs"
+echo ""
+echo "Pour voir les logs:   docker-compose logs -f"
+echo "Pour arrêter:         docker-compose down"
+echo ""
+echo "Appuyez sur Entrée pour continuer..."
+read

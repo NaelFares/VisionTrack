@@ -159,7 +159,39 @@ function ResultsPage({ videoId }) {
             src={`${API_URL}/annotated-videos/${videoId}`}
             controls
             className="video-player"
+            onError={(e) => {
+              console.error('ERREUR VIDEO:', e);
+              console.error('URL vidéo:', `${API_URL}/annotated-videos/${videoId}`);
+              console.error('Erreur détails:', e.target.error);
+            }}
+            onLoadedMetadata={() => {
+              console.log('✓ Vidéo chargée avec succès');
+              console.log('Durée:', videoRef.current?.duration);
+            }}
           />
+          {results.annotated_video_path && (
+            <p className="video-path-debug">
+              Chemin vidéo: {results.annotated_video_path}
+            </p>
+          )}
+        </div>
+
+        {/* Boutons d'export */}
+        <div className="export-buttons">
+          <a
+            href={`${API_URL}/export-video/${videoId}`}
+            download
+            className="btn-primary export-btn"
+          >
+            📥 Télécharger la vidéo
+          </a>
+          <a
+            href={`${API_URL}/export-results/${videoId}`}
+            download
+            className="btn-secondary export-btn"
+          >
+            📄 Exporter les statistiques (JSON)
+          </a>
         </div>
       </div>
 

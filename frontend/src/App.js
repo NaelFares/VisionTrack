@@ -21,7 +21,7 @@ function App() {
     <div className="App">
       {/* Barre de navigation */}
       <nav className="nav">
-        <h1>VisionTrack - Analyse Vidéo Intelligente</h1>
+        <h1>VisionTrack</h1>
         <div className="nav-links">
           <button
             onClick={() => setCurrentPage('upload')}
