@@ -55,13 +55,39 @@ function UploadPage({ onAnalysisComplete }) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
 
-      video.addEventListener('loadedmetadata', () => {
-        // Ajuster la taille du canvas à celle de la vidéo
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
+      const updateCanvasSize = () => {
+        // Vérifier que les dimensions vidéo sont disponibles
+        if (video.videoWidth > 0 && video.videoHeight > 0) {
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+        }
+      };
+
+      // Méthode 1: Essayer immédiatement si la vidéo est déjà chargée
+      if (video.readyState >= video.HAVE_METADATA) {
+        updateCanvasSize();
+      }
+
+      // Méthode 2: Écouter plusieurs événements pour garantir la mise à jour
+      const events = ['loadedmetadata', 'loadeddata', 'canplay'];
+      events.forEach(event => {
+        video.addEventListener(event, updateCanvasSize);
       });
+
+      // Méthode 3: Fallback avec setTimeout pour forcer la mise à jour
+      const timeoutId = setTimeout(() => {
+        updateCanvasSize();
+      }, 500);
+
+      // Cleanup
+      return () => {
+        events.forEach(event => {
+          video.removeEventListener(event, updateCanvasSize);
+        });
+        clearTimeout(timeoutId);
+      };
     }
-  }, [videoUrl]);
+  }, [videoUrl, analysisMode]);
 
   // Dessiner la zone sélectionnée sur le canvas
   const drawZone = () => {
@@ -113,6 +139,13 @@ function UploadPage({ onAnalysisComplete }) {
   useEffect(() => {
     if (zone) {
       drawZone();
+    } else {
+      // Si pas de zone, effacer le canvas
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
     }
   }, [zone]);
 
@@ -120,9 +153,12 @@ function UploadPage({ onAnalysisComplete }) {
   const handleMouseDown = (e) => {
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
+
+    // Calculer les ratios d'échelle
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
 
+    // Convertir les coordonnées de clic en coordonnées canvas
     const x = (e.clientX - rect.left) * scaleX;
     const y = (e.clientY - rect.top) * scaleY;
 
@@ -211,6 +247,17 @@ function UploadPage({ onAnalysisComplete }) {
       // Ajouter la zone seulement si le mode 'zone' est sélectionné
       if (analysisMode === 'zone' && zone) {
         requestData.zone = zone;
+        console.log('=== ENVOI ANALYSE AVEC ZONE ===');
+        console.log('Zone envoyée au backend:', {
+          x1: zone.x1,
+          y1: zone.y1,
+          x2: zone.x2,
+          y2: zone.y2,
+          largeur: zone.x2 - zone.x1,
+          hauteur: zone.y2 - zone.y1
+        });
+      } else {
+        console.log('=== ENVOI ANALYSE SANS ZONE ===');
       }
 
       const response = await axios.post(`${API_URL}/analyze`, requestData);

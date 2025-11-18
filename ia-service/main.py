@@ -212,13 +212,27 @@ async def detect_people(request: DetectRequest):
             # Créer une copie du frame pour l'annotation
             annotated_frame = frame.copy()
 
-            # Dessiner la zone d'analyse sur le frame (rectangle semi-transparent)
-            overlay = annotated_frame.copy()
-            cv2.rectangle(overlay,
+            # ========== MASQUE ROUGE SUR LES ZONES NON-SÉLECTIONNÉES ==========
+            # Créer un masque binaire : 0 = zone sélectionnée, 255 = hors zone
+            mask = np.ones((height, width), dtype=np.uint8) * 255
+            mask[int(zone.y1):int(zone.y2), int(zone.x1):int(zone.x2)] = 0
+
+            # Créer un overlay rouge pour toute la frame
+            red_overlay = np.zeros_like(annotated_frame)
+            red_overlay[:, :] = (0, 0, 255)  # Rouge en BGR
+
+            # Appliquer le rouge transparent (40%) uniquement HORS de la zone
+            alpha = 0.4  # Transparence du masque rouge
+            # Utiliser le masque pour mélanger le rouge seulement où mask == 255
+            mask_3channel = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
+            red_blend = cv2.addWeighted(annotated_frame, 1-alpha, red_overlay, alpha, 0)
+            annotated_frame = np.where(mask_3channel == 255, red_blend, annotated_frame)
+
+            # Dessiner le contour de la zone en BLANC ÉPAIS pour bien la voir
+            cv2.rectangle(annotated_frame,
                          (int(zone.x1), int(zone.y1)),
                          (int(zone.x2), int(zone.y2)),
-                         (91, 127, 255), 2)  # Bleu clair, épaisseur 2
-            cv2.addWeighted(overlay, 0.3, annotated_frame, 0.7, 0, annotated_frame)
+                         (255, 255, 255), 3)  # Blanc, épaisseur 3
 
             # Exécuter YOLOv8n sur le frame
             # verbose=False pour réduire les logs
