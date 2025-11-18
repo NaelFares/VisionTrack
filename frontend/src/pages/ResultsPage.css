@@ -313,6 +313,7 @@
   align-items: center;
   gap: 0.5rem;
   box-shadow: var(--shadow-md);
+  cursor: pointer;
 }
 
 .export-btn:hover {

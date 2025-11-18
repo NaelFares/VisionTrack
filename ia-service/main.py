@@ -4,6 +4,7 @@ Utilise YOLOv8n pour détecter les personnes dans les vidéos
 """
 
 import os
+import subprocess
 from pathlib import Path
 from typing import List, Dict, Optional
 
@@ -15,7 +16,21 @@ from ultralytics import YOLO
 
 # Configuration from environment variables
 YOLO_MODEL = os.getenv("YOLO_MODEL", "yolov8n.pt")
-VIDEO_CODEC = os.getenv("VIDEO_CODEC", "mp4v")
+
+# VIDEO_CODEC correspond désormais au format final souhaité (H264 par défaut pour compatibilité navigateur)
+VIDEO_CODEC = os.getenv("VIDEO_CODEC", "mp4v").upper()
+H264_PRESET = os.getenv("H264_PRESET", "veryfast")
+H264_CRF = os.getenv("H264_CRF", "23")
+H264_CODECS = {"H264", "AVC1", "X264"}
+VIDEO_WRITER_CODEC_OVERRIDE = os.getenv("VIDEO_WRITER_CODEC")
+NEEDS_H264_TRANSCODE = VIDEO_CODEC in H264_CODECS
+
+# Codec réellement utilisé par OpenCV (mp4v si on doit ensuite transcoder en H.264)
+VIDEO_WRITER_CODEC = (
+    VIDEO_WRITER_CODEC_OVERRIDE.upper()
+    if VIDEO_WRITER_CODEC_OVERRIDE
+    else ("MP4V" if NEEDS_H264_TRANSCODE else VIDEO_CODEC)
+)
 
 # Initialisation de l'application FastAPI
 app = FastAPI(
@@ -154,12 +169,20 @@ async def detect_people(request: DetectRequest):
     # Générer le nom du fichier de sortie pour la vidéo annotée
     video_id = Path(video_path).stem
     annotated_video_path = annotated_dir / f"{video_id}_annotated.mp4"
+    writer_output_path = annotated_video_path
+
+    if NEEDS_H264_TRANSCODE:
+        writer_output_path = annotated_dir / f"{video_id}_annotated_raw.mp4"
+        print("Codec H.264 demandé -> génération d'un fichier intermédiaire avant transcodage ffmpeg")
 
     print(f"Chemin de sortie pour vidéo annotée : {annotated_video_path}")
+    if writer_output_path != annotated_video_path:
+        print(f"Fichier temporaire utilisé pour l'écriture OpenCV : {writer_output_path}")
 
     # Créer le VideoWriter pour la vidéo annotée
-    fourcc = cv2.VideoWriter_fourcc(*VIDEO_CODEC)
-    out = cv2.VideoWriter(str(annotated_video_path), fourcc, fps, (width, height))
+    print(f"Codec utilisé par OpenCV : {VIDEO_WRITER_CODEC}")
+    fourcc = cv2.VideoWriter_fourcc(*VIDEO_WRITER_CODEC)
+    out = cv2.VideoWriter(str(writer_output_path), fourcc, fps, (width, height))
 
     if not out.isOpened():
         print("ERREUR : Impossible de créer le VideoWriter")
@@ -277,6 +300,21 @@ async def detect_people(request: DetectRequest):
         out.release()
         print("✓ Ressources vidéo libérées")
 
+    if NEEDS_H264_TRANSCODE:
+        print("Transcodage H.264 via ffmpeg pour compatibilité navigateur...")
+        conversion_ok = transcode_to_h264(writer_output_path, annotated_video_path)
+        if conversion_ok:
+            try:
+                writer_output_path.unlink(missing_ok=True)
+                print(f"✓ Fichier intermédiaire supprimé : {writer_output_path}")
+            except Exception as cleanup_error:
+                print(f"ATTENTION : Impossible de supprimer le fichier temporaire - {cleanup_error}")
+        else:
+            print("ATTENTION : Transcodage H.264 échoué, conservation du fichier MP4V (moins compatible navigateur)")
+            if writer_output_path.exists() and writer_output_path != annotated_video_path:
+                writer_output_path.replace(annotated_video_path)
+
+
     print("\n" + "-"*80)
     print("RÉSUMÉ DE L'ANALYSE")
     print("-"*80)
@@ -312,6 +350,37 @@ async def detect_people(request: DetectRequest):
 
 
 # ========== Fonctions utilitaires ==========
+
+
+def transcode_to_h264(source_path: Path, destination_path: Path) -> bool:
+    """Convertit une vidéo MP4V en H.264 via ffmpeg."""
+    ffmpeg_cmd = [
+        "ffmpeg",
+        "-y",
+        "-i", str(source_path),
+        "-c:v", "libx264",
+        "-preset", H264_PRESET,
+        "-crf", H264_CRF,
+        "-pix_fmt", "yuv420p",
+        "-movflags", "+faststart",
+        "-an",
+        str(destination_path)
+    ]
+
+    try:
+        result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True, check=True)
+        print("✓ Transcodage H.264 réussi via ffmpeg")
+        if result.stderr:
+            print(result.stderr)
+        return True
+    except FileNotFoundError:
+        print("ERREUR : ffmpeg est introuvable dans le conteneur")
+    except subprocess.CalledProcessError as exc:
+        print("ERREUR : ffmpeg a échoué à convertir la vidéo en H.264")
+        print(exc.stderr)
+
+    return False
+
 
 def is_point_in_zone(x: float, y: float, zone: Zone) -> bool:
     """

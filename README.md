@@ -61,8 +61,8 @@ VisionTrack utilise une architecture microservices composée de 3 services indé
     - Frame du pic
   - Timeline visuelle des détections
   - **Export des résultats** :
-    - 📥 Télécharger la vidéo annotée (.mp4)
-    - 📄 Exporter les statistiques (JSON)
+    - Télécharger la vidéo annotée (.mp4)
+    - Exporter les statistiques (JSON)
 
 ### Backend (FastAPI)
 

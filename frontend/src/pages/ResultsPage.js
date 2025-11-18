@@ -11,6 +11,10 @@ function ResultsPage({ videoId }) {
 
   // État pour le frame actuellement affiché
   const [currentFrame, setCurrentFrame] = useState(0);
+  const [videoBlobUrl, setVideoBlobUrl] = useState(null);
+  const [videoPreparing, setVideoPreparing] = useState(false);
+  const [videoError, setVideoError] = useState(null);
+  const [jsonBlobUrl, setJsonBlobUrl] = useState(null);
 
   // Référence pour la vidéo
   const videoRef = useRef(null);
@@ -92,6 +96,89 @@ function ResultsPage({ videoId }) {
     return frameData ? frameData.boxes : [];
   };
 
+
+  useEffect(() => {
+    let jsonUrl = null;
+    if (results) {
+      const jsonBlob = new Blob([JSON.stringify(results, null, 2)], {
+        type: 'application/json'
+      });
+      jsonUrl = URL.createObjectURL(jsonBlob);
+      setJsonBlobUrl(jsonUrl);
+    } else {
+      setJsonBlobUrl(null);
+    }
+
+    return () => {
+      if (jsonUrl) {
+        URL.revokeObjectURL(jsonUrl);
+      }
+    };
+  }, [results]);
+
+  useEffect(() => {
+    let objectUrl = null;
+    let cancelled = false;
+
+    if (!results?.annotated_video_path) {
+      setVideoBlobUrl(null);
+      return;
+    }
+
+    setVideoPreparing(true);
+    setVideoError(null);
+    setVideoBlobUrl(null);
+
+    const fetchVideo = async () => {
+      try {
+        const response = await fetch(`${API_URL}/annotated-videos/${videoId}`);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        const blob = await response.blob();
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setVideoBlobUrl(objectUrl);
+      } catch (err) {
+        console.error('ERREUR : Préparation de la vidéo impossible', err);
+        if (!cancelled) {
+          setVideoError("Impossible de préparer la vidéo. Veuillez réessayer.");
+        }
+      } finally {
+        if (!cancelled) {
+          setVideoPreparing(false);
+        }
+      }
+    };
+
+    fetchVideo();
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+  }, [API_URL, videoId, results?.annotated_video_path]);
+
+  const triggerDownload = (url, filename) => {
+    if (!url) return;
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+  };
+
+  const handleDownload = (type) => {
+    if (type === 'video') {
+      triggerDownload(videoBlobUrl, `visiontrack_analysis_${videoId}.mp4`);
+    } else {
+      triggerDownload(jsonBlobUrl, `visiontrack_results_${videoId}.json`);
+    }
+  };
+
   if (loading) {
     console.log('Affichage: État de chargement');
     return <div className="loading">Chargement des résultats...</div>;
@@ -156,7 +243,7 @@ function ResultsPage({ videoId }) {
         <div className="video-container">
           <video
             ref={videoRef}
-            src={`${API_URL}/annotated-videos/${videoId}`}
+            src={videoBlobUrl || ''}
             controls
             className="video-player"
             onError={(e) => {
@@ -169,6 +256,12 @@ function ResultsPage({ videoId }) {
               console.log('Durée:', videoRef.current?.duration);
             }}
           />
+          {videoPreparing && (
+            <p className="video-path-debug">Préparation de la vidéo en cours...</p>
+          )}
+          {videoError && (
+            <p className="error">{videoError}</p>
+          )}
           {results.annotated_video_path && (
             <p className="video-path-debug">
               Chemin vidéo: {results.annotated_video_path}
@@ -178,20 +271,22 @@ function ResultsPage({ videoId }) {
 
         {/* Boutons d'export */}
         <div className="export-buttons">
-          <a
-            href={`${API_URL}/export-video/${videoId}`}
-            download
+          <button
+            type="button"
+            onClick={() => handleDownload('video')}
             className="btn-primary export-btn"
+            disabled={!videoBlobUrl}
           >
-            📥 Télécharger la vidéo
-          </a>
-          <a
-            href={`${API_URL}/export-results/${videoId}`}
-            download
+            Télécharger la vidéo
+          </button>
+          <button
+            type="button"
+            onClick={() => handleDownload('results')}
             className="btn-secondary export-btn"
+            disabled={!jsonBlobUrl}
           >
-            📄 Exporter les statistiques (JSON)
-          </a>
+            Exporter les statistiques (JSON)
+          </button>
         </div>
       </div>
 
