@@ -1,0 +1,246 @@
+/* ===================================
+   Page Upload - Styles modernes
+   =================================== */
+
+.upload-page {
+  max-width: 1000px;
+  margin: 0 auto;
+  animation: fadeIn 0.5s ease-out;
+}
+
+/* Input de fichier personnalisé */
+.file-input-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.file-input {
+  display: none;
+}
+
+.file-input-label {
+  background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-purple) 100%);
+  color: white;
+  padding: 1rem 3rem;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: var(--transition);
+  font-weight: 600;
+  font-size: 1.1rem;
+  box-shadow: var(--shadow-md);
+  position: relative;
+  overflow: hidden;
+}
+
+.file-input-label::before {
+  content: '📁';
+  margin-right: 0.5rem;
+  font-size: 1.3rem;
+}
+
+.file-input-label:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-glow-blue);
+}
+
+.file-input-label:active {
+  transform: translateY(0);
+}
+
+.file-input:disabled + .file-input-label {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.file-name {
+  color: var(--accent-cyan);
+  font-weight: 500;
+  font-size: 1rem;
+  padding: 0.75rem 1.5rem;
+  background: var(--bg-glass);
+  border-radius: 8px;
+  border: 1px solid var(--border-glass);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  text-align: center;
+}
+
+/* Texte d'instruction */
+.instruction-text {
+  color: var(--text-secondary);
+  margin-bottom: 1.5rem;
+  line-height: 1.6;
+}
+
+/* Sélecteur de mode d'analyse */
+.analysis-mode-selector {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.mode-option {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  padding: 1.5rem;
+  background: var(--bg-glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 16px;
+  border: 2px solid var(--border-glass);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.mode-option:hover {
+  border-color: var(--border-glow-blue);
+  box-shadow: var(--shadow-glow-blue);
+  transform: translateY(-2px);
+}
+
+.mode-option.selected {
+  border-color: var(--primary-blue);
+  background: linear-gradient(135deg, rgba(91, 127, 255, 0.1) 0%, rgba(133, 96, 255, 0.1) 100%);
+  box-shadow: 0 0 30px rgba(91, 127, 255, 0.3);
+}
+
+.mode-option input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.mode-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-left: 0.5rem;
+}
+
+.mode-content strong {
+  color: var(--text-primary);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.mode-content span {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.mode-option.selected .mode-content strong {
+  color: var(--primary-blue);
+}
+
+.mode-option.selected .mode-content span {
+  color: var(--text-secondary);
+}
+
+/* Container vidéo */
+.video-container {
+  position: relative;
+  width: 100%;
+  max-width: 900px;
+  margin: 2rem auto;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+  border: 2px solid var(--border-glass);
+  transition: var(--transition);
+}
+
+.video-container:hover {
+  border-color: var(--border-glow-blue);
+  box-shadow: var(--shadow-glow-blue);
+}
+
+.video-player {
+  width: 100%;
+  height: auto;
+  display: block;
+  background: var(--bg-dark);
+}
+
+/* Canvas pour la zone de sélection */
+.zone-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+  pointer-events: all;
+}
+
+/* Informations sur la zone */
+.zone-info {
+  margin-top: 1.5rem;
+  padding: 1.5rem;
+  background: var(--bg-glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 12px;
+  border: 1px solid var(--border-glass);
+  animation: slideIn 0.3s ease-out;
+}
+
+.zone-info p {
+  margin-bottom: 1rem;
+  color: var(--text-secondary);
+  font-size: 1rem;
+}
+
+.zone-info strong {
+  color: var(--primary-blue);
+  font-weight: 600;
+}
+
+/* Bouton d'analyse */
+.btn-analyze {
+  width: 100%;
+  max-width: 400px;
+  display: block;
+  margin: 0 auto;
+  padding: 1.25rem 2rem;
+  font-size: 1.2rem;
+  animation: pulse-glow 2s infinite;
+}
+
+/* Effet de pulse pour le bouton analyser */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(255, 107, 53, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(255, 107, 53, 0.6);
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .file-input-label {
+    padding: 0.875rem 2rem;
+    font-size: 1rem;
+  }
+
+  .video-container {
+    max-width: 100%;
+    margin: 1rem auto;
+  }
+
+  .zone-info {
+    padding: 1rem;
+  }
+
+  .btn-analyze {
+    font-size: 1rem;
+    padding: 1rem 1.5rem;
+  }
+}

@@ -1,0 +1,73 @@
+# Docker Compose pour VisionTrack
+# Orchestration des 3 services : frontend, backend, ia-service
+
+services:
+  # ========== Service Frontend React.js ==========
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: visiontrack-frontend
+    ports:
+      - "3000:3000"  # Mapper le port 3000 du container vers le port 3000 de l'hôte
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000  # URL du backend pour le navigateur
+    volumes:
+      - ./frontend:/app  # Montage pour le développement en temps réel
+      - /app/node_modules  # Volume anonyme pour éviter de réécrire node_modules
+    depends_on:
+      - backend  # Le frontend dépend du backend
+    networks:
+      - visiontrack-network
+    stdin_open: true  # Nécessaire pour React en mode développement
+    tty: true
+
+  # ========== Service Backend FastAPI ==========
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: visiontrack-backend
+    ports:
+      - "8000:8000"  # Mapper le port 8000 du container vers le port 8000 de l'hôte
+    environment:
+      - IA_SERVICE_URL=http://ia-service:8001  # URL du service IA dans le réseau Docker
+    volumes:
+      - ./backend:/app  # Montage pour le développement en temps réel
+      - shared-data:/app/shared  # Volume partagé pour les uploads et résultats
+    depends_on:
+      - ia-service  # Le backend dépend du service IA
+    networks:
+      - visiontrack-network
+
+  # ========== Service IA YOLOv8n ==========
+  ia-service:
+    build:
+      context: ./ia-service
+      dockerfile: Dockerfile
+    container_name: visiontrack-ia-service
+    ports:
+      - "8001:8001"  # Mapper le port 8001 du container vers le port 8001 de l'hôte
+    volumes:
+      - ./ia-service:/app  # Montage pour le développement en temps réel
+      - shared-data:/app/shared  # Volume partagé pour accéder aux vidéos uploadées
+    networks:
+      - visiontrack-network
+    # Configuration pour utiliser le GPU si disponible (optionnel)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+# ========== Volumes ==========
+volumes:
+  shared-data:  # Volume partagé entre backend et ia-service pour les fichiers
+    driver: local
+
+# ========== Réseaux ==========
+networks:
+  visiontrack-network:  # Réseau pour la communication entre les services
+    driver: bridge

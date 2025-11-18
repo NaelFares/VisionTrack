@@ -1,0 +1,10 @@
+# Dépendances Python pour le service IA
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+# Forcer PyTorch 2.5.1 pour compatibilité avec YOLOv8
+torch==2.5.1
+torchvision==0.20.1
+ultralytics==8.0.228
+opencv-python-headless==4.8.1.78
+numpy==1.24.3
+pydantic==2.5.2

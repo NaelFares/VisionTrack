@@ -1,0 +1,13 @@
+# Fichiers à ne pas copier dans l'image Docker du service IA
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env
+venv
+.git
+.gitignore
+README.md
+shared/
+*.log
