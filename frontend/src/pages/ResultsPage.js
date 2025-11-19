@@ -178,7 +178,7 @@ function ResultsPage({ videoId }) {
 
     const cleanup = async () => {
       try {
-        const response = await fetch(`${API_URL}/analysis/`, {
+        const response = await fetch(`${API_URL}/analysis/${videoId}`, {
           method: 'DELETE',
           signal: controller.signal
         });

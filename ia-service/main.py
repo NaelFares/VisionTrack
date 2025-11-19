@@ -313,16 +313,19 @@ async def detect_people(request: DetectRequest):
     if NEEDS_H264_TRANSCODE:
         print("Transcodage H.264 via ffmpeg pour compatibilité navigateur...")
         conversion_ok = transcode_to_h264(writer_output_path, annotated_video_path)
-        if conversion_ok:
-            try:
-                writer_output_path.unlink(missing_ok=True)
-                print(f"✓ Fichier intermédiaire supprimé : {writer_output_path}")
-            except Exception as cleanup_error:
-                print(f"ATTENTION : Impossible de supprimer le fichier temporaire - {cleanup_error}")
-        else:
-            print("ATTENTION : Transcodage H.264 échoué, conservation du fichier MP4V (moins compatible navigateur)")
+
+        # Toujours nettoyer le fichier temporaire raw, que le transcodage réussisse ou non
+        try:
             if writer_output_path.exists() and writer_output_path != annotated_video_path:
-                writer_output_path.replace(annotated_video_path)
+                if conversion_ok:
+                    writer_output_path.unlink(missing_ok=True)
+                    print(f"✓ Fichier intermédiaire supprimé : {writer_output_path}")
+                else:
+                    print("ATTENTION : Transcodage H.264 échoué, utilisation du fichier MP4V (moins compatible)")
+                    writer_output_path.replace(annotated_video_path)
+                    print(f"✓ Fichier temporaire déplacé vers : {annotated_video_path}")
+        except Exception as cleanup_error:
+            print(f"ATTENTION : Impossible de gérer le fichier temporaire - {cleanup_error}")
 
 
     print("\n" + "-"*80)

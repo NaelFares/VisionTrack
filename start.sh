@@ -103,10 +103,10 @@ else
 fi
 echo ""
 
-# Arrêter les services existants proprement
-echo "[3/7] Arrêt des services existants..."
-docker-compose down &> /dev/null
-echo "     Services arrêtés ✓"
+# Arrêter les services existants proprement et supprimer les volumes
+echo "[3/7] Arrêt des services existants et nettoyage des volumes..."
+docker-compose down -v &> /dev/null
+echo "     Services arrêtés et volumes VisionTrack nettoyés ✓"
 echo ""
 
 # Build des images

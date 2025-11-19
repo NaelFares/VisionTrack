@@ -250,8 +250,12 @@ async def analyze_video(request: AnalyzeRequest):
 
     # Supprimer la vidéo originale pour économiser de l'espace
     try:
-        Path(video_path).unlink()
-        print(f"✓ Vidéo originale supprimée : {video_path}")
+        video_file = Path(video_path)
+        if video_file.exists():
+            video_file.unlink()
+            print(f"✓ Vidéo originale supprimée : {video_path}")
+        else:
+            print(f"INFO : Vidéo originale déjà supprimée : {video_path}")
     except Exception as e:
         print(f"ATTENTION : Impossible de supprimer la vidéo originale - {str(e)}")
         # Ne pas lever d'exception, l'analyse est terminée

@@ -83,10 +83,10 @@ if not exist .env (
 )
 echo.
 
-REM Arrêter les services existants proprement
-echo [3/7] Arret des services existants...
-docker-compose down >nul 2>&1
-echo      Services arretes
+REM Arrêter les services existants proprement et supprimer les volumes
+echo [3/7] Arret des services existants et nettoyage des volumes...
+docker-compose down -v >nul 2>&1
+echo      Services arretes et volumes VisionTrack nettoyes
 echo.
 
 REM Build des images

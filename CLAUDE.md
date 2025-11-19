@@ -34,9 +34,12 @@ start.bat
 The scripts automatically:
 - Check Docker Desktop is running
 - Create `.env` from `.env.example`
+- Stop existing services and **clean all volumes** (`docker-compose down -v`)
 - Build all services
 - Start in detached mode
 - Display service URLs
+
+**Note**: Volume cleanup (`-v` flag) prevents accumulation of orphaned Docker volumes.
 
 ### Development
 
@@ -82,12 +85,42 @@ curl -X POST http://localhost:8000/upload-video -F "file=@test.mp4"
 # Remove containers, networks
 docker-compose down
 
-# Remove containers, networks, AND volumes (deletes uploaded videos)
+# Remove containers, networks, AND volumes (recommended)
 docker-compose down -v
 
 # Full cleanup including images
 docker-compose down --rmi all
+
+# Clean orphaned volumes
+docker volume prune
 ```
+
+### Docker Volume Management
+
+**Zero-Storage Policy**: VisionTrack implements automatic cleanup to prevent storage accumulation.
+
+**Volume Types**:
+1. **`visiontrack_shared-data`** (named volume): Always empty due to automatic cleanup
+2. **Anonymous volumes** (`/app/node_modules`): Created for each container
+
+**Preventing Accumulation**:
+- `start.bat` and `start.sh` use `docker-compose down -v` to clean volumes on each run
+- Frontend automatically calls `DELETE /analysis/{id}` after downloading files
+- Backend deletes original videos immediately after analysis
+
+**Manual Cleanup** (if volumes accumulate):
+```bash
+# List all volumes
+docker volume ls
+
+# Remove unused volumes
+docker volume prune
+
+# Check volume disk usage
+docker system df
+```
+
+**Expected State**: All `/app/shared/` subdirectories (uploads, annotated, results) should remain empty (~0 MB) after each analysis.
 
 ## Project Structure
 
@@ -200,20 +233,21 @@ total_people = 2
 
 ```
 /app/shared/
-├── uploads/                    # Temporary: deleted after analysis
+├── uploads/                    # Ephemeral: deleted after analysis
 │   └── <video_id>.<ext>
-├── annotated/                  # Kept: contains tracking visualization
+├── annotated/                  # Ephemeral: deleted after download
 │   └── <video_id>_annotated.mp4
-└── results/                    # Kept: contains statistics + detections
+└── results/                    # Ephemeral: deleted after download
     └── <video_id>.json
 ```
 
-**Lifecycle**:
-1. Upload → `uploads/video.mp4`
-2. Analysis → `annotated/video_annotated.mp4` + `results/video.json`
-3. Cleanup (auto) → `uploads/video.mp4` deleted by backend
-4. Frontend → Downloads both files as Blobs (stored in browser)
-5. Cleanup (manual) → `DELETE /analysis/{id}` removes annotated + results
+**Lifecycle** (All files are ephemeral - zero persistent storage):
+1. Upload → `uploads/video.mp4` (temporary)
+2. Analysis → `annotated/video_annotated.mp4` + `results/video.json` (temporary)
+3. Cleanup #1 (auto) → `uploads/video.mp4` deleted by backend immediately after analysis
+4. Frontend → Downloads both files as Blobs (stored in browser memory)
+5. Cleanup #2 (auto) → `DELETE /analysis/{id}` called automatically after blobs created
+6. Result → All Docker volumes remain empty (~0 MB persistent storage)
 
 ### Frontend Blobs System
 

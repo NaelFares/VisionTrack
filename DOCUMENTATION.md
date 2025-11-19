@@ -419,15 +419,17 @@ if (zone['x1'] <= center_x <= zone['x2'] and
 
 ```
 /app/shared/
-├── uploads/                    # Vidéos uploadées
+├── uploads/                    # Éphémère - Vidéos uploadées (supprimées après analyse)
 │   └── <video_id>.<ext>       # Ex: 550e8400.mp4
 │
-├── annotated/                  # Vidéos annotées
+├── annotated/                  # Éphémère - Vidéos annotées (supprimées après téléchargement)
 │   └── <video_id>_annotated.mp4
 │
-└── results/                    # Résultats JSON
+└── results/                    # Éphémère - Résultats JSON (supprimés après téléchargement)
     └── <video_id>.json
 ```
+
+**Note** : Tous les dossiers sont **éphémères** et restent vides grâce au nettoyage automatique.
 
 ### Cycle de Vie des Fichiers
 
@@ -444,9 +446,11 @@ if (zone['x1'] <= center_x <= zone['x2'] and
    - Frontend télécharge la vidéo annotée et les résultats
    - Frontend crée des **Blobs locaux** dans le navigateur
 
-4. **Nettoyage** :
-   - Frontend appelle `DELETE /analysis/{video_id}`
+4. **Nettoyage Automatique** :
+   - Frontend télécharge les fichiers et crée des Blobs locaux
+   - Frontend appelle **automatiquement** `DELETE /analysis/{video_id}` après création des Blobs
    - Backend supprime `annotated/<video_id>_annotated.mp4` et `results/<video_id>.json`
+   - **Résultat** : Tous les dossiers du volume restent vides (~0 MB stockage persistant)
 
 ### Blobs Frontend
 
@@ -625,20 +629,41 @@ curl -X POST http://localhost:8000/upload-video \
 
 ### Nettoyage
 
+**Politique de Stockage Zéro** : VisionTrack implémente un nettoyage automatique pour éviter l'accumulation de données.
+
 **Nettoyer les containers** :
 ```bash
 docker-compose down
 ```
 
-**Nettoyer les volumes (⚠️ efface les données)** :
+**Nettoyer les volumes (recommandé)** :
 ```bash
 docker-compose down -v
+```
+
+**Note** : `start.bat` et `start.sh` utilisent automatiquement `docker-compose down -v` pour éviter l'accumulation de volumes anonymes orphelins.
+
+**Nettoyer les volumes orphelins manuellement** :
+```bash
+# Lister les volumes
+docker volume ls
+
+# Supprimer les volumes non utilisés
+docker volume prune
+
+# Vérifier l'espace disque utilisé par Docker
+docker system df
 ```
 
 **Nettoyer tout Docker** :
 ```bash
 docker system prune -a --volumes
 ```
+
+**État Attendu** :
+- Volume `visiontrack_shared-data` : ~0 MB (vide)
+- Dossiers `uploads/`, `annotated/`, `results/` : vides
+- Pas de volumes anonymes orphelins
 
 ### Backup
 
