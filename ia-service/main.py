@@ -348,11 +348,11 @@ async def detect_people(request: DetectRequest):
     print("="*80 + "\n")
 
     # Réinitialiser le tracker ByteTrack pour la prochaine analyse
-    # Vérification que la liste n'est pas vide pour éviter IndexError
-    if hasattr(yolo_model, 'predictor') and hasattr(yolo_model.predictor, 'trackers'):
-        if len(yolo_model.predictor.trackers) > 0:
-            yolo_model.predictor.trackers = []
-            print("✓ Tracker ByteTrack réinitialisé")
+    # On réinitialise complètement le predictor pour éviter les IndexError
+    # Ultralytics recrée automatiquement un nouveau predictor au prochain appel
+    if hasattr(yolo_model, 'predictor'):
+        yolo_model.predictor = None
+        print("✓ Tracker ByteTrack réinitialisé (predictor reset)")
 
     response_data = {
         "message": "Détection terminée avec succès",
