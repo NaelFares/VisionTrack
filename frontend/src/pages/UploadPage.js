@@ -1,6 +1,7 @@
 // Page 1 : Upload de vidéo et sélection de zone d'analyse
 import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
+import { API_URL, ENDPOINTS, ERROR_MESSAGES, SUCCESS_MESSAGES, REDIRECT_DELAY, ZONE_COLORS, ZONE_CONFIG } from '../config';
 import './UploadPage.css';
 
 function UploadPage({ onAnalysisComplete }) {
@@ -25,16 +26,13 @@ function UploadPage({ onAnalysisComplete }) {
   const canvasRef = useRef(null);
   const videoRef = useRef(null);
 
-  // URL de l'API backend (configurée dans package.json proxy ou ici)
-  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
-
   // Gestionnaire de sélection de fichier vidéo
   const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
       // Vérifier que c'est bien une vidéo
       if (!file.type.startsWith('video/')) {
-        setError('Veuillez sélectionner un fichier vidéo valide');
+        setError(ERROR_MESSAGES.INVALID_VIDEO);
         return;
       }
 
@@ -103,16 +101,16 @@ function UploadPage({ onAnalysisComplete }) {
       const height = zone.y2 - zone.y1;
 
       // Remplissage semi-transparent
-      ctx.fillStyle = 'rgba(0, 217, 255, 0.15)';
+      ctx.fillStyle = ZONE_COLORS.FILL;
       ctx.fillRect(zone.x1, zone.y1, width, height);
 
       // Dessiner le rectangle de la zone avec des lignes fines
-      ctx.strokeStyle = '#00D9FF';
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = ZONE_COLORS.STROKE;
+      ctx.lineWidth = ZONE_CONFIG.LINE_WIDTH;
       ctx.strokeRect(zone.x1, zone.y1, width, height);
 
       // Dessiner les 4 points aux angles
-      const pointRadius = 6;
+      const pointRadius = ZONE_CONFIG.POINT_RADIUS;
       const corners = [
         { x: zone.x1, y: zone.y1 },         // Coin haut-gauche
         { x: zone.x2, y: zone.y1 },         // Coin haut-droit
@@ -124,13 +122,13 @@ function UploadPage({ onAnalysisComplete }) {
         // Cercle extérieur (bordure)
         ctx.beginPath();
         ctx.arc(corner.x, corner.y, pointRadius, 0, Math.PI * 2);
-        ctx.fillStyle = '#00D9FF';
+        ctx.fillStyle = ZONE_COLORS.POINT_OUTER;
         ctx.fill();
 
         // Cercle intérieur (centre)
         ctx.beginPath();
         ctx.arc(corner.x, corner.y, pointRadius - 2, 0, Math.PI * 2);
-        ctx.fillStyle = '#ffffff';
+        ctx.fillStyle = ZONE_COLORS.POINT_INNER;
         ctx.fill();
       });
     }
@@ -195,7 +193,7 @@ function UploadPage({ onAnalysisComplete }) {
   const handleUpload = async (file) => {
     const fileToUpload = file || videoFile;
     if (!fileToUpload) {
-      setError('Veuillez sélectionner une vidéo');
+      setError(ERROR_MESSAGES.NO_VIDEO_SELECTED);
       return;
     }
 
@@ -207,16 +205,16 @@ function UploadPage({ onAnalysisComplete }) {
     formData.append('file', fileToUpload);
 
     try {
-      const response = await axios.post(`${API_URL}/upload-video`, formData, {
+      const response = await axios.post(`${API_URL}${ENDPOINTS.UPLOAD}`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
 
       setVideoId(response.data.video_id);
-      setSuccess('Vidéo uploadée avec succès ! Vous pouvez maintenant définir une zone d\'analyse.');
+      setSuccess(SUCCESS_MESSAGES.UPLOAD_SUCCESS);
     } catch (err) {
-      setError('Erreur lors de l\'upload de la vidéo : ' + (err.response?.data?.detail || err.message));
+      setError(ERROR_MESSAGES.UPLOAD_FAILED + ' : ' + (err.response?.data?.detail || err.message));
     } finally {
       setUploadLoading(false);
     }
@@ -225,13 +223,13 @@ function UploadPage({ onAnalysisComplete }) {
   // Lancer l'analyse
   const handleAnalyze = async () => {
     if (!videoId) {
-      setError('Veuillez d\'abord uploader une vidéo');
+      setError(ERROR_MESSAGES.NO_VIDEO_SELECTED);
       return;
     }
 
     // Vérifier la zone seulement si le mode 'zone' est sélectionné
     if (analysisMode === 'zone' && !zone) {
-      setError('Veuillez définir une zone d\'analyse en dessinant un rectangle sur la vidéo');
+      setError(ERROR_MESSAGES.NO_ZONE_DEFINED);
       return;
     }
 
@@ -261,16 +259,16 @@ function UploadPage({ onAnalysisComplete }) {
         console.log('=== ENVOI ANALYSE SANS ZONE ===');
       }
 
-      const response = await axios.post(`${API_URL}/analyze`, requestData);
+      const response = await axios.post(`${API_URL}${ENDPOINTS.ANALYZE}`, requestData);
 
-      setSuccess('Analyse terminée avec succès !');
+      setSuccess(SUCCESS_MESSAGES.ANALYSIS_SUCCESS);
 
-      // Rediriger vers la page de résultats après 1 seconde
+      // Rediriger vers la page de résultats après un court délai
       setTimeout(() => {
         onAnalysisComplete(videoId);
-      }, 1000);
+      }, REDIRECT_DELAY);
     } catch (err) {
-      setError('Erreur lors de l\'analyse : ' + (err.response?.data?.detail || err.message));
+      setError(ERROR_MESSAGES.ANALYSIS_FAILED + ' : ' + (err.response?.data?.detail || err.message));
       setAnalyzeLoading(false);
     }
   };

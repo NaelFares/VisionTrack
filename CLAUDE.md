@@ -133,6 +133,7 @@ VisionTrack/
 │       │   ├── UploadPage.css
 │       │   ├── ResultsPage.js   # Analysis results with timeline
 │       │   └── ResultsPage.css
+│       ├── config.js            # Centralized configuration (API_URL, constants, messages)
 │       ├── App.js               # Main component + navigation
 │       ├── index.js
 │       └── index.css            # Global styles (nav, cards, etc.)
@@ -156,6 +157,55 @@ VisionTrack/
 ├── DOCUMENTATION.md        # Technical documentation
 └── CLAUDE.md               # This file
 ```
+
+## Configuration Management
+
+### Centralized Configuration (`frontend/src/config.js`)
+
+**Purpose**: All configuration constants, API URLs, and messages are centralized in a single file to follow the DRY (Don't Repeat Yourself) principle and Single Source of Truth pattern.
+
+**File location**: `frontend/src/config.js`
+
+**What it contains**:
+- `API_URL`: Backend API base URL (reads from `.env` with fallback)
+- `ENDPOINTS`: All API endpoint paths (UPLOAD, ANALYZE, RESULTS, ANNOTATED_VIDEO, DELETE_ANALYSIS)
+- `DEFAULT_FPS`: Default frames per second fallback (30) - actual FPS comes from backend
+- `ERROR_MESSAGES`: Standardized error messages
+- `SUCCESS_MESSAGES`: Standardized success messages
+- `REDIRECT_DELAY`: Delay before redirecting after analysis (ms)
+- `ZONE_COLORS`: Colors for zone drawing on canvas (STROKE, FILL, POINT_OUTER, POINT_INNER)
+- `ZONE_CONFIG`: Canvas configuration (LINE_WIDTH, POINT_RADIUS)
+
+**Usage in components**:
+```javascript
+// Import what you need
+import { API_URL, ENDPOINTS, ERROR_MESSAGES, ZONE_COLORS, ZONE_CONFIG } from '../config';
+
+// API calls use ENDPOINTS (not hardcoded URLs)
+axios.post(`${API_URL}${ENDPOINTS.UPLOAD}`, formData);
+axios.get(`${API_URL}${ENDPOINTS.RESULTS}/${videoId}`);
+
+// Canvas drawing uses centralized colors/config
+ctx.strokeStyle = ZONE_COLORS.STROKE;
+ctx.lineWidth = ZONE_CONFIG.LINE_WIDTH;
+
+// Error handling uses standardized messages
+setError(ERROR_MESSAGES.UPLOAD_FAILED);
+```
+
+**Benefits**:
+- ✅ Single source of truth (change once, applies everywhere)
+- ✅ No hardcoded URLs or magic values in components
+- ✅ Easier maintenance (change endpoint = 1 file edit)
+- ✅ Consistent error messages and UI styling
+- ✅ Environment variables read only once
+
+**Important**: Always use `ENDPOINTS` constants instead of hardcoded URL paths. This was enforced through a refactoring that eliminated all hardcoded URLs from UploadPage.js and ResultsPage.js.
+
+**Relationship with `.env`**:
+- `.env` file stores environment-specific values (external configuration)
+- `config.js` reads from `.env` and provides fallback defaults (code-level configuration)
+- Both are complementary, not redundant
 
 ## Important Implementation Details
 

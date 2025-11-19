@@ -210,11 +210,13 @@ async def analyze_video(request: AnalyzeRequest):
         print(f"ERREUR : Le service IA a renvoyé une erreur HTTP {e.response.status_code}")
         raise HTTPException(status_code=e.response.status_code, detail=f"Erreur du service IA : {str(e)}")
 
-    # Extraire les détections et le chemin de la vidéo annotée
+    # Extraire les détections, le FPS et le chemin de la vidéo annotée
     detections = detections_data.get("detections", [])
+    fps = detections_data.get("fps", 30.0)  # Fallback à 30 FPS si non fourni
     annotated_video_path = detections_data.get("annotated_video_path", "")
 
     print(f"Détections extraites : {len(detections)} frames avec détections")
+    print(f"FPS de la vidéo : {fps}")
     print(f"Vidéo annotée : {annotated_video_path}")
 
     # Note: Remapping désactivé car le service IA réinitialise le tracker proprement
@@ -232,6 +234,7 @@ async def analyze_video(request: AnalyzeRequest):
     # Préparer les résultats complets
     results = {
         "video_id": video_id,
+        "fps": fps,
         "stats": stats,
         "detections": detections,
         "annotated_video_path": annotated_video_path

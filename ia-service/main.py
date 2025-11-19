@@ -93,6 +93,7 @@ class DetectionResponse(BaseModel):
     """Réponse de détection"""
     message: str
     total_frames: int
+    fps: float
     detections: List[FrameDetection]
     annotated_video_path: str
 
@@ -360,6 +361,7 @@ async def detect_people(request: DetectRequest):
     response_data = {
         "message": "Détection terminée avec succès",
         "total_frames": frame_number,
+        "fps": fps,
         "detections": all_detections,
         "annotated_video_path": str(annotated_video_path)
     }

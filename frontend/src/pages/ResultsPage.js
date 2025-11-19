@@ -1,6 +1,7 @@
 // Page 2 : Affichage des résultats d'analyse
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import { API_URL, ENDPOINTS, ERROR_MESSAGES, DEFAULT_FPS } from '../config';
 import './ResultsPage.css';
 
 function ResultsPage({ videoId }) {
@@ -21,8 +22,12 @@ function ResultsPage({ videoId }) {
   // Référence pour la vidéo
   const videoRef = useRef(null);
 
-  // URL de l'API backend
-  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+  // Fonction helper pour obtenir le FPS de la vidéo
+  const getVideoFPS = () => {
+    // Utiliser le FPS exact fourni par le backend/IA service
+    // Fallback sur DEFAULT_FPS (30) si non disponible
+    return results?.fps || DEFAULT_FPS;
+  };
 
   // Charger les résultats au montage du composant
   useEffect(() => {
@@ -46,8 +51,8 @@ function ResultsPage({ videoId }) {
     setError(null);
 
     try {
-      console.log(`Requête GET vers: ${API_URL}/results/${videoId}`);
-      const response = await axios.get(`${API_URL}/results/${videoId}`);
+      console.log(`Requête GET vers: ${API_URL}${ENDPOINTS.RESULTS}/${videoId}`);
+      const response = await axios.get(`${API_URL}${ENDPOINTS.RESULTS}/${videoId}`);
 
       console.log('✓ Réponse reçue du backend');
       console.log('Données reçues:', response.data);
@@ -67,7 +72,7 @@ function ResultsPage({ videoId }) {
       console.error('  Message:', err.message);
       console.error('  Réponse:', err.response?.data);
       console.error('  Status:', err.response?.status);
-      setError('Erreur lors du chargement des résultats : ' + (err.response?.data?.detail || err.message));
+      setError(ERROR_MESSAGES.RESULTS_LOAD_FAILED + ' : ' + (err.response?.data?.detail || err.message));
     } finally {
       setLoading(false);
       console.log('='.repeat(80) + '\n');
@@ -80,8 +85,8 @@ function ResultsPage({ videoId }) {
       const video = videoRef.current;
 
       const handleTimeUpdate = () => {
-        // Calculer le numéro de frame approximatif (en supposant 30 fps)
-        const fps = 30;
+        // Calculer le numéro de frame avec le FPS exact de la vidéo
+        const fps = getVideoFPS();
         const frame = Math.floor(video.currentTime * fps);
         setCurrentFrame(frame);
       };
@@ -138,7 +143,7 @@ function ResultsPage({ videoId }) {
 
     const fetchVideo = async () => {
       try {
-        const response = await fetch(`${API_URL}/annotated-videos/${videoId}`);
+        const response = await fetch(`${API_URL}${ENDPOINTS.ANNOTATED_VIDEO}/${videoId}`);
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`);
         }
@@ -149,7 +154,7 @@ function ResultsPage({ videoId }) {
       } catch (err) {
         console.error('ERREUR : Préparation de la vidéo impossible', err);
         if (!cancelled) {
-          setVideoError("Impossible de préparer la vidéo. Veuillez réessayer.");
+          setVideoError(ERROR_MESSAGES.VIDEO_PREPARATION_FAILED);
         }
       } finally {
         if (!cancelled) {
@@ -178,7 +183,7 @@ function ResultsPage({ videoId }) {
 
     const cleanup = async () => {
       try {
-        const response = await fetch(`${API_URL}/analysis/${videoId}`, {
+        const response = await fetch(`${API_URL}${ENDPOINTS.DELETE_ANALYSIS}/${videoId}`, {
           method: 'DELETE',
           signal: controller.signal
         });
@@ -293,7 +298,7 @@ function ResultsPage({ videoId }) {
             className="video-player"
             onError={(e) => {
               console.error('ERREUR VIDEO:', e);
-              console.error('URL vidéo:', `${API_URL}/annotated-videos/${videoId}`);
+              console.error('URL vidéo:', `${API_URL}${ENDPOINTS.ANNOTATED_VIDEO}/${videoId}`);
               console.error('Erreur détails:', e.target.error);
             }}
             onLoadedMetadata={() => {
@@ -379,9 +384,8 @@ function ResultsPage({ videoId }) {
                 // Fonction pour sauter à une frame spécifique
                 const jumpToFrame = () => {
                   if (videoRef.current && videoRef.current.duration) {
-                    // Estimer le FPS: totalFrames / durée
-                    const lastFrame = results.detections[results.detections.length - 1].frame;
-                    const fps = lastFrame / videoRef.current.duration;
+                    // Utiliser le FPS exact de la vidéo
+                    const fps = getVideoFPS();
 
                     // Calculer le timestamp de cette frame
                     const timestamp = frameData.frame / fps;

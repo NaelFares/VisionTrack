@@ -503,6 +503,57 @@ AUTO_CLEANUP_DAYS=0
 GENERATE_ANNOTATED_VIDEO_BY_DEFAULT=true
 ```
 
+### Configuration Frontend Centralisée
+
+**Fichier** : `frontend/src/config.js`
+
+**Objectif** : Centraliser toutes les constantes, URL API, et messages de l'application frontend selon les principes DRY (Don't Repeat Yourself) et Single Source of Truth.
+
+**Relation avec `.env`** :
+- Le fichier `.env` stocke les variables d'environnement (configuration externe)
+- Le fichier `config.js` lit ces variables et fournit des valeurs par défaut (configuration code)
+- Les deux fichiers sont **complémentaires**, pas redondants
+
+**Exports disponibles** :
+- `API_URL` : URL de base du backend
+- `ENDPOINTS` : Tous les chemins d'endpoints API
+  - `UPLOAD` : `/upload-video`
+  - `ANALYZE` : `/analyze`
+  - `RESULTS` : `/results`
+  - `ANNOTATED_VIDEO` : `/annotated-videos`
+  - `DELETE_ANALYSIS` : `/analysis`
+- `DEFAULT_FPS` : FPS par défaut (30) - fallback uniquement, le FPS réel vient du backend
+- `ERROR_MESSAGES` : Messages d'erreur standardisés
+- `SUCCESS_MESSAGES` : Messages de succès standardisés
+- `REDIRECT_DELAY` : Délai avant redirection après analyse (ms)
+- `ZONE_COLORS` : Couleurs pour le dessin de zone sur canvas
+  - `STROKE`, `FILL`, `POINT_OUTER`, `POINT_INNER`
+- `ZONE_CONFIG` : Configuration du canvas
+  - `LINE_WIDTH`, `POINT_RADIUS`
+
+**Utilisation dans les composants** :
+```javascript
+// Importer les constantes nécessaires
+import { API_URL, ENDPOINTS, ZONE_COLORS, ZONE_CONFIG } from '../config';
+
+// Appels API avec ENDPOINTS (jamais de URLs hardcodées)
+axios.post(`${API_URL}${ENDPOINTS.UPLOAD}`, formData);
+fetch(`${API_URL}${ENDPOINTS.ANNOTATED_VIDEO}/${videoId}`);
+
+// Dessin canvas avec constantes centralisées
+ctx.strokeStyle = ZONE_COLORS.STROKE;
+ctx.lineWidth = ZONE_CONFIG.LINE_WIDTH;
+```
+
+**Avantages** :
+- ✅ Une seule source de vérité (changement unique = application globale)
+- ✅ Aucune valeur hardcodée ("magic values") dans les composants
+- ✅ Maintenance facilitée (modification d'un endpoint = 1 fichier)
+- ✅ Cohérence garantie (messages, couleurs, URLs)
+- ✅ Facilite les tests et le debugging
+
+**Note importante** : Un refactoring a été effectué pour éliminer toutes les URLs hardcodées de `UploadPage.js` et `ResultsPage.js`. Toujours utiliser `ENDPOINTS` au lieu de chaînes de caractères directes.
+
 ### Paramètres Configurables
 
 | Paramètre | Description | Valeur par défaut | Valeurs possibles |
@@ -528,9 +579,23 @@ frontend/src/
 │   ├── UploadPage.css
 │   ├── ResultsPage.js     # Page 2 : Résultats
 │   └── ResultsPage.css
+├── config.js              # Configuration centralisée (API_URL, constantes, messages)
 ├── App.js                 # Composant racine + navigation
 ├── index.js               # Point d'entrée
 └── index.css              # Styles globaux
+```
+
+**Configuration centralisée** (`config.js`) :
+- `API_URL` : URL du backend (lit `.env` avec fallback)
+- `ENDPOINTS` : Chemins des endpoints API
+- `DEFAULT_FPS` : FPS par défaut (30)
+- `ERROR_MESSAGES` / `SUCCESS_MESSAGES` : Messages standardisés
+- `ZONE_COLORS` / `ZONE_CONFIG` : Configuration du canvas
+
+**Utilisation** :
+```javascript
+import { API_URL, ERROR_MESSAGES } from '../config';
+axios.post(`${API_URL}/upload-video`, formData);
 ```
 
 #### Backend (FastAPI)
