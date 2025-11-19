@@ -2,7 +2,7 @@
 
 Application d'analyse vidéo utilisant l'intelligence artificielle pour détecter et compter les personnes dans des vidéos de surveillance.
 
-## 📋 Qu'est-ce que VisionTrack ?
+## Qu'est-ce que VisionTrack ?
 
 VisionTrack analyse automatiquement vos vidéos de surveillance pour :
 - **Compter le nombre de personnes** ayant traversé une zone
@@ -36,10 +36,10 @@ chmod +x start.sh    # Une seule fois
 ```
 
 Le script va automatiquement :
-- ✅ Vérifier que Docker est lancé
-- ✅ Créer la configuration nécessaire
-- ✅ Télécharger et construire les composants (5-10 min au premier lancement)
-- ✅ Démarrer l'application
+- Vérifier que Docker est lancé
+- Créer la configuration nécessaire
+- Télécharger et construire les composants (5-10 min au premier lancement)
+- Démarrer l'application
 
 #### 2. Ouvrir l'application
 
@@ -55,7 +55,7 @@ Accédez à l'application:
 
 Ouvrez votre navigateur et allez sur : **http://localhost:3000**
 
-## 🎯 Comment utiliser VisionTrack
+## Comment utiliser VisionTrack
 
 ### Étape 1 : Import & Analyse
 
@@ -75,7 +75,7 @@ Ouvrez votre navigateur et allez sur : **http://localhost:3000**
 
 Vous obtenez automatiquement :
 
-- **📊 Statistiques**
+- **Statistiques**
   - Nombre total de personnes détectées
   - Pic d'affluence maximum
   - Frame où le pic a été atteint
@@ -119,7 +119,7 @@ docker-compose down -v
 docker-compose up --build
 ```
 
-## 🐛 Problèmes Fréquents
+## Problèmes Fréquents
 
 ### Docker Desktop n'est pas lancé
 **Solution** : Lancez Docker Desktop et attendez qu'il soit complètement démarré (icône bleue dans la barre des tâches).
@@ -139,14 +139,14 @@ docker-compose up --build
 ### Pas assez de mémoire
 **Solution** : Dans Docker Desktop → Settings → Resources → Memory, allouez au moins 4 Go.
 
-## 📁 Où sont stockées mes données ?
+## Où sont stockées mes données ?
 
 - **Vidéos uploadées** : Supprimées automatiquement après l'analyse
 - **Vidéos annotées** : Stockées dans Docker, téléchargeables via l'interface
 - **Statistiques JSON** : Stockées dans Docker, téléchargeables via l'interface
 - **Nettoyage** : `docker-compose down -v` efface toutes les données
 
-## 📚 Documentation Technique
+## Documentation Technique
 
 Pour les développeurs ou utilisateurs avancés, consultez [DOCUMENTATION.md](DOCUMENTATION.md) pour :
 - Architecture détaillée
@@ -163,14 +163,10 @@ En cas de problème :
 3. Consultez la [documentation technique](DOCUMENTATION.md)
 4. Ouvrez une issue sur GitHub
 
-## 📝 Notes Importantes
+## Notes Importantes
 
 ⚠️ **Attention** : Cette application est conçue pour un usage local et de développement. Pour une utilisation en production, des mesures de sécurité supplémentaires sont nécessaires.
 
-## 📄 Licence
-
-Ce projet est sous licence MIT.
-
 ---
 
-**Bon comptage ! 🚀**
+**Bon comptage !**
