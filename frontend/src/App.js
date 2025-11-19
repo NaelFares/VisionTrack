@@ -24,10 +24,13 @@ function App() {
         <h1>VisionTrack</h1>
         <div className="nav-links">
           <button
-            onClick={() => setCurrentPage('upload')}
+            onClick={() => {
+              setCurrentPage('upload');
+              setVideoId(null); // Réinitialiser pour empêcher le retour aux anciens résultats
+            }}
             className={currentPage === 'upload' ? 'active' : ''}
           >
-            Import & Analyse
+            Nouvelle Analyse
           </button>
           <button
             onClick={() => setCurrentPage('results')}
