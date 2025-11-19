@@ -1,0 +1,18 @@
+# Configuration ByteTrack optimisée pour réduire les changements d'ID
+# Documentation: https://docs.ultralytics.com/modes/track/
+
+tracker_type: bytetrack
+
+# Seuils de confiance
+track_high_thresh: 0.5   # Démarrer un nouveau track
+track_low_thresh: 0.1    # Continuer un track existant (garde même si confiance baisse)
+
+# CLEF: Nombre de frames pour garder un track sans détection
+# 90 frames = 3 secondes à 30fps → tolère occlusions et sorties temporaires
+track_buffer: 90
+
+# Seuil IoU pour associer détections aux tracks
+match_thresh: 0.8        # Strict pour éviter confusions entre personnes proches
+
+# Compensation mouvement caméra
+gmc_method: sparseOptFlow

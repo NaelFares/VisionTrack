@@ -68,6 +68,7 @@ class DetectionBox(BaseModel):
     x2: float
     y2: float
     confidence: float
+    track_id: Optional[int] = None
 
 
 class FrameDetection(BaseModel):
@@ -215,6 +216,10 @@ async def analyze_video(request: AnalyzeRequest):
 
     print(f"Détections extraites : {len(detections)} frames avec détections")
     print(f"Vidéo annotée : {annotated_video_path}")
+
+    # Note: Remapping désactivé car le service IA réinitialise le tracker proprement
+    # Les track_ids commencent toujours à 1 grâce au reset en fin d'analyse
+    # detections = remap_track_ids(detections)
 
     # Calculer les statistiques
     stats = calculate_statistics(detections)
@@ -395,16 +400,34 @@ async def export_results(video_id: str):
 
 # ========== Fonctions utilitaires ==========
 
+def remap_track_ids(detections: List[Dict]) -> List[Dict]:
+    """
+    Remappe les track_ids pour qu'ils commencent à 1 au lieu de valeurs élevées.
+    Préserve l'ordre d'apparition des tracks.
+    """
+    # Collecter tous les track_ids uniques dans l'ordre d'apparition
+    track_id_mapping = {}
+    next_id = 1
+
+    for detection in detections:
+        for box in detection.get("boxes", []):
+            old_track_id = box.get("track_id")
+            if old_track_id is not None and old_track_id not in track_id_mapping:
+                track_id_mapping[old_track_id] = next_id
+                next_id += 1
+
+    # Appliquer le remapping
+    for detection in detections:
+        for box in detection.get("boxes", []):
+            old_track_id = box.get("track_id")
+            if old_track_id is not None:
+                box["track_id"] = track_id_mapping[old_track_id]
+
+    return detections
+
+
 def calculate_statistics(detections: List[Dict]) -> Dict:
-    """
-    Calcule les statistiques à partir des détections
-
-    Args:
-        detections: Liste des détections par frame
-
-    Returns:
-        Dict avec les statistiques calculées
-    """
+    """Calcule les statistiques à partir des détections."""
     if not detections:
         return {
             "total_people": 0,
@@ -412,24 +435,49 @@ def calculate_statistics(detections: List[Dict]) -> Dict:
             "frame_of_max": 0
         }
 
-    # Compter le total de personnes détectées (avec dédoublonnage approximatif)
-    # Note : dans une version plus avancée, on pourrait implémenter un tracking
-    total_people = 0
-    max_people = 0
+    # Compter les apparitions de chaque track_id
+    track_id_counts = {}
+    max_people_with_ids = 0
+    max_people_total = 0
     frame_of_max = 0
 
     for detection in detections:
         frame_num = detection["frame"]
-        num_people = len(detection["boxes"])
+        boxes = detection.get("boxes", [])
 
-        # Mettre à jour le maximum
-        if num_people > max_people:
-            max_people = num_people
+        # Compter séparément les boxes avec et sans track_id
+        boxes_with_ids = [b for b in boxes if b.get("track_id") is not None]
+        num_people_with_ids = len(boxes_with_ids)
+        num_people_total = len(boxes)
+
+        # Utiliser le max de boxes avec IDs pour les frames trackées
+        if num_people_with_ids > max_people_with_ids:
+            max_people_with_ids = num_people_with_ids
+
+        # Garder aussi le max total pour fallback
+        if num_people_total > max_people_total:
+            max_people_total = num_people_total
             frame_of_max = frame_num
 
-        # Pour le total, on compte simplement toutes les détections
-        # Dans une version avancée, on utiliserait un algorithme de tracking
-        total_people += num_people
+        # Compter les apparitions de chaque track_id
+        for box in boxes_with_ids:
+            track_id = box.get("track_id")
+            if track_id is not None:
+                track_id_counts[track_id] = track_id_counts.get(track_id, 0) + 1
+
+    # Filtrer les track_ids qui apparaissent moins de 20 frames (~0.7 sec à 30fps)
+    # Compromis entre précision (vidéo complète) et détection (zones de passage)
+    MIN_FRAMES_THRESHOLD = 20
+    valid_track_ids = {tid for tid, count in track_id_counts.items() if count >= MIN_FRAMES_THRESHOLD}
+
+    # Si on a des track_ids valides, utiliser le nombre d'IDs uniques filtrés
+    # Sinon, utiliser le max simultané (meilleure estimation)
+    if valid_track_ids:
+        total_people = len(valid_track_ids)
+        max_people = max(max_people_with_ids, max_people_total)
+    else:
+        total_people = max_people_total
+        max_people = max_people_total
 
     return {
         "total_people": total_people,
@@ -437,6 +485,27 @@ def calculate_statistics(detections: List[Dict]) -> Dict:
         "frame_of_max": frame_of_max
     }
 
+
+
+@app.delete("/analysis/{video_id}")
+async def delete_analysis(video_id: str):
+    """Supprime les fichiers de resultats (video annotee + JSON)."""
+    annotated_path = ANNOTATED_DIR / f"{video_id}_annotated.mp4"
+    results_path = RESULTS_DIR / f"{video_id}.json"
+
+    deleted_any = False
+
+    for file_path in (annotated_path, results_path):
+        if file_path.exists():
+            try:
+                file_path.unlink()
+                deleted_any = True
+            except Exception as exc:
+                print(f"ATTENTION : impossible de supprimer {file_path} - {exc}")
+
+    if deleted_any:
+        return {"message": "Fichiers d'analyse supprimes"}
+    return {"message": "Aucun fichier a supprimer"}
 
 # ========== Gestion des erreurs ==========
 

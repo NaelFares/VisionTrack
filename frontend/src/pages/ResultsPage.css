@@ -223,12 +223,27 @@
   box-shadow: 0 -6px 16px rgba(255, 107, 53, 0.6);
 }
 
-.timeline-legend {
+.timeline-timestamps {
   display: flex;
   justify-content: space-between;
+  margin-top: 0.5rem;
+  padding: 0 1.5rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-family: 'Courier New', monospace;
+}
+
+.timestamp {
+  flex: 1;
+  text-align: center;
+}
+
+.timeline-legend {
+  display: flex;
+  justify-content: center;
   align-items: center;
-  margin-top: 1rem;
-  padding: 1rem 1.5rem;
+  margin-top: 0.75rem;
+  padding: 0.75rem 1.5rem;
   background: var(--bg-glass);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);

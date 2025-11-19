@@ -8,7 +8,8 @@ function UploadPage({ onAnalysisComplete }) {
   const [videoFile, setVideoFile] = useState(null);
   const [videoUrl, setVideoUrl] = useState(null);
   const [videoId, setVideoId] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [uploadLoading, setUploadLoading] = useState(false);
+  const [analyzeLoading, setAnalyzeLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
@@ -198,7 +199,7 @@ function UploadPage({ onAnalysisComplete }) {
       return;
     }
 
-    setLoading(true);
+    setUploadLoading(true);
     setError(null);
     setSuccess(null);
 
@@ -217,7 +218,7 @@ function UploadPage({ onAnalysisComplete }) {
     } catch (err) {
       setError('Erreur lors de l\'upload de la vidéo : ' + (err.response?.data?.detail || err.message));
     } finally {
-      setLoading(false);
+      setUploadLoading(false);
     }
   };
 
@@ -234,7 +235,7 @@ function UploadPage({ onAnalysisComplete }) {
       return;
     }
 
-    setLoading(true);
+    setAnalyzeLoading(true);
     setError(null);
     setSuccess(null);
 
@@ -270,12 +271,23 @@ function UploadPage({ onAnalysisComplete }) {
       }, 1000);
     } catch (err) {
       setError('Erreur lors de l\'analyse : ' + (err.response?.data?.detail || err.message));
-      setLoading(false);
+      setAnalyzeLoading(false);
     }
   };
 
   return (
     <div className="upload-page">
+      {/* Overlay de chargement pendant l'analyse */}
+      {analyzeLoading && (
+        <div className="analysis-overlay">
+          <div className="spinner-container">
+            <div className="spinner"></div>
+            <p>Analyse en cours...</p>
+            <p className="analysis-subtitle">Veuillez patienter, cela peut prendre quelques minutes</p>
+          </div>
+        </div>
+      )}
+
       {/* Messages de succès/erreur */}
       {error && <div className="error">{error}</div>}
       {success && <div className="success">{success}</div>}
@@ -290,10 +302,10 @@ function UploadPage({ onAnalysisComplete }) {
             onChange={handleFileChange}
             id="video-input"
             className="file-input"
-            disabled={loading}
+            disabled={uploadLoading || analyzeLoading || videoId}
           />
-          <label htmlFor="video-input" className="file-input-label">
-            {loading ? 'Upload en cours...' : 'Choisir une vidéo'}
+          <label htmlFor="video-input" className={`file-input-label ${videoId ? 'disabled' : ''}`}>
+            {uploadLoading ? 'Upload en cours...' : videoId ? 'Vidéo uploadée ✓' : 'Choisir une vidéo'}
           </label>
           {videoFile && <span className="file-name">{videoFile.name}</span>}
         </div>
@@ -390,10 +402,10 @@ function UploadPage({ onAnalysisComplete }) {
           </p>
           <button
             onClick={handleAnalyze}
-            disabled={loading}
+            disabled={analyzeLoading}
             className="btn-success btn-analyze"
           >
-            {loading ? 'Analyse en cours...' : 'Analyser la vidéo'}
+            {analyzeLoading ? 'Analyse en cours...' : 'Analyser la vidéo'}
           </button>
         </div>
       )}

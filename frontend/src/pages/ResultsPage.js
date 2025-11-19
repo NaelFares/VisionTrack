@@ -15,6 +15,8 @@ function ResultsPage({ videoId }) {
   const [videoPreparing, setVideoPreparing] = useState(false);
   const [videoError, setVideoError] = useState(null);
   const [jsonBlobUrl, setJsonBlobUrl] = useState(null);
+  const [cleanupDone, setCleanupDone] = useState(false);
+  const [cleanupError, setCleanupError] = useState(null);
 
   // Référence pour la vidéo
   const videoRef = useRef(null);
@@ -25,6 +27,11 @@ function ResultsPage({ videoId }) {
   // Charger les résultats au montage du composant
   useEffect(() => {
     loadResults();
+  }, [videoId]);
+
+  useEffect(() => {
+    setCleanupDone(false);
+    setCleanupError(null);
   }, [videoId]);
 
   // Fonction pour charger les résultats depuis le backend
@@ -161,6 +168,44 @@ function ResultsPage({ videoId }) {
     };
   }, [API_URL, videoId, results?.annotated_video_path]);
 
+  useEffect(() => {
+    if (!videoId || !videoBlobUrl || !jsonBlobUrl || cleanupDone) {
+      return;
+    }
+
+    let cancelled = false;
+    const controller = new AbortController();
+
+    const cleanup = async () => {
+      try {
+        const response = await fetch(`${API_URL}/analysis/`, {
+          method: 'DELETE',
+          signal: controller.signal
+        });
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        if (!cancelled) {
+          setCleanupDone(true);
+          setCleanupError(null);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setCleanupError(err.message);
+          console.error('ERREUR : Nettoyage des fichiers impossible', err);
+        }
+      }
+    };
+
+    cleanup();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [API_URL, videoId, videoBlobUrl, jsonBlobUrl, cleanupDone]);
+
+
   const triggerDownload = (url, filename) => {
     if (!url) return;
     const anchor = document.createElement('a');
@@ -262,11 +307,6 @@ function ResultsPage({ videoId }) {
           {videoError && (
             <p className="error">{videoError}</p>
           )}
-          {results.annotated_video_path && (
-            <p className="video-path-debug">
-              Chemin vidéo: {results.annotated_video_path}
-            </p>
-          )}
         </div>
 
         {/* Boutons d'export */}
@@ -336,12 +376,31 @@ function ResultsPage({ videoId }) {
                 const isMaxFrame = frameData.frame === results.stats.frame_of_max;
                 const height = (peopleCount / results.stats.max_people_simultaneous) * 100;
 
+                // Fonction pour sauter à une frame spécifique
+                const jumpToFrame = () => {
+                  if (videoRef.current && videoRef.current.duration) {
+                    // Estimer le FPS: totalFrames / durée
+                    const lastFrame = results.detections[results.detections.length - 1].frame;
+                    const fps = lastFrame / videoRef.current.duration;
+
+                    // Calculer le timestamp de cette frame
+                    const timestamp = frameData.frame / fps;
+
+                    // Sauter à ce timestamp
+                    videoRef.current.currentTime = timestamp;
+
+                    // Scroll vers la vidéo pour voir le changement
+                    videoRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }
+                };
+
                 return (
                   <div
                     key={index}
                     className={`timeline-bar ${isMaxFrame ? 'max-frame' : ''}`}
-                    style={{ height: `${height}%` }}
-                    title={`Frame ${frameData.frame}: ${peopleCount} personne(s)`}
+                    style={{ height: `${height}%`, cursor: 'pointer' }}
+                    title={`Frame ${frameData.frame}: ${peopleCount} personne(s) - Cliquez pour y aller`}
+                    onClick={jumpToFrame}
                   />
                 );
               })}
@@ -349,8 +408,24 @@ function ResultsPage({ videoId }) {
           ) : (
             <p className="no-data">Aucune donnée de timeline disponible</p>
           )}
+
+          {/* Marqueurs de temps */}
+          {videoRef.current && videoRef.current.duration && (
+            <div className="timeline-timestamps">
+              {Array.from({ length: 5 }).map((_, i) => {
+                const timestamp = (videoRef.current.duration / 4) * i;
+                const minutes = Math.floor(timestamp / 60);
+                const seconds = Math.floor(timestamp % 60);
+                return (
+                  <span key={i} className="timestamp">
+                    {minutes}:{seconds.toString().padStart(2, '0')}
+                  </span>
+                );
+              })}
+            </div>
+          )}
+
           <div className="timeline-legend">
-            <span>Temps →</span>
             <span className="legend-max">■ Frame du pic maximum</span>
           </div>
         </div>

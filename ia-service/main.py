@@ -16,6 +16,8 @@ from ultralytics import YOLO
 
 # Configuration from environment variables
 YOLO_MODEL = os.getenv("YOLO_MODEL", "yolov8n.pt")
+CONFIDENCE_THRESHOLD = float(os.getenv("CONFIDENCE_THRESHOLD", "0.5"))
+TRACKER_CONFIG = os.getenv("TRACKER_CONFIG", "bytetrack.yaml")
 
 # VIDEO_CODEC correspond désormais au format final souhaité (H264 par défaut pour compatibilité navigateur)
 VIDEO_CODEC = os.getenv("VIDEO_CODEC", "mp4v").upper()
@@ -78,6 +80,7 @@ class DetectionBox(BaseModel):
     x2: float
     y2: float
     confidence: float
+    track_id: Optional[int] = None
 
 
 class FrameDetection(BaseModel):
@@ -150,6 +153,7 @@ async def detect_people(request: DetectRequest):
     fps = cap.get(cv2.CAP_PROP_FPS)
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    cap.release()
 
     print(f"✓ Vidéo ouverte avec succès")
     print(f"  - Total frames : {total_frames}")
@@ -186,7 +190,6 @@ async def detect_people(request: DetectRequest):
 
     if not out.isOpened():
         print("ERREUR : Impossible de créer le VideoWriter")
-        cap.release()
         raise HTTPException(status_code=500, detail="Impossible de créer la vidéo annotée")
 
     print(f"✓ VideoWriter créé avec succès")
@@ -201,101 +204,96 @@ async def detect_people(request: DetectRequest):
 
     frame_number = 0
 
+    # Configuration de ByteTrack pour le tracking des personnes
+    # persist=True: garde les track_ids stables DANS la vidéo
+    # TRACKER_CONFIG: fichier de configuration ByteTrack (défini dans .env)
+    track_generator = yolo_model.track(
+        source=video_path,
+        stream=True,
+        verbose=False,
+        persist=True,
+        tracker=TRACKER_CONFIG,
+        conf=CONFIDENCE_THRESHOLD
+    )
+
     try:
-        while True:
-            # Lire le frame suivant
-            ret, frame = cap.read()
+        for result in track_generator:
+            frame = result.orig_img
+            if frame is None:
+                continue
 
-            if not ret:
-                break  # Fin de la vidéo
-
-            # Créer une copie du frame pour l'annotation
             annotated_frame = frame.copy()
+            frame_height, frame_width = annotated_frame.shape[:2]
 
             # ========== MASQUE ROUGE SUR LES ZONES NON-SÉLECTIONNÉES ==========
-            # Créer un masque binaire : 0 = zone sélectionnée, 255 = hors zone
-            mask = np.ones((height, width), dtype=np.uint8) * 255
+            mask = np.ones((frame_height, frame_width), dtype=np.uint8) * 255
             mask[int(zone.y1):int(zone.y2), int(zone.x1):int(zone.x2)] = 0
 
-            # Créer un overlay rouge pour toute la frame
             red_overlay = np.zeros_like(annotated_frame)
             red_overlay[:, :] = (0, 0, 255)  # Rouge en BGR
-
-            # Appliquer le rouge transparent (40%) uniquement HORS de la zone
-            alpha = 0.4  # Transparence du masque rouge
-            # Utiliser le masque pour mélanger le rouge seulement où mask == 255
+            alpha = 0.4
             mask_3channel = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
             red_blend = cv2.addWeighted(annotated_frame, 1-alpha, red_overlay, alpha, 0)
             annotated_frame = np.where(mask_3channel == 255, red_blend, annotated_frame)
 
-            # Dessiner le contour de la zone en BLANC ÉPAIS pour bien la voir
             cv2.rectangle(annotated_frame,
                          (int(zone.x1), int(zone.y1)),
                          (int(zone.x2), int(zone.y2)),
-                         (255, 255, 255), 3)  # Blanc, épaisseur 3
+                         (255, 255, 255), 3)
 
-            # Exécuter YOLOv8n sur le frame
-            # verbose=False pour réduire les logs
-            results = yolo_model(frame, verbose=False)
-
-            # Filtrer les détections de personnes dans la zone
             frame_boxes = []
+            boxes_obj = result.boxes
+            boxes = boxes_obj if boxes_obj is not None else []
 
-            # YOLO renvoie les résultats, on parcourt les détections
-            for result in results:
-                # Extraire les boxes, classes et confidences
-                boxes = result.boxes
+            for box in boxes:
+                class_id = int(box.cls[0])
+                if class_id != 0:
+                    continue
 
-                for box in boxes:
-                    # Vérifier si c'est une personne (classe 0 dans COCO)
-                    class_id = int(box.cls[0])
-                    if class_id != 0:  # 0 = personne dans le dataset COCO
-                        continue
+                x1, y1, x2, y2 = box.xyxy[0].tolist()
+                confidence = float(box.conf[0])
+                track_id = int(box.id[0]) if box.id is not None else None
 
-                    # Extraire les coordonnées et la confiance
-                    x1, y1, x2, y2 = box.xyxy[0].tolist()
-                    confidence = float(box.conf[0])
+                # Filtrer les détections de faible confiance
+                if confidence < CONFIDENCE_THRESHOLD:
+                    continue
 
-                    # Calculer le centre de la bounding box
-                    center_x = (x1 + x2) / 2
-                    center_y = (y1 + y2) / 2
+                center_x = (x1 + x2) / 2
+                center_y = (y1 + y2) / 2
 
-                    # Vérifier si le centre est dans la zone d'analyse
-                    if is_point_in_zone(center_x, center_y, zone):
-                        frame_boxes.append({
-                            "x1": x1,
-                            "y1": y1,
-                            "x2": x2,
-                            "y2": y2,
-                            "confidence": confidence
-                        })
+                if is_point_in_zone(center_x, center_y, zone):
+                    frame_boxes.append({
+                        "x1": x1,
+                        "y1": y1,
+                        "x2": x2,
+                        "y2": y2,
+                        "confidence": confidence,
+                        "track_id": track_id
+                    })
 
-                        # Dessiner la bounding box sur le frame annoté
-                        # Rectangle vert avec épaisseur 2
-                        cv2.rectangle(annotated_frame,
-                                    (int(x1), int(y1)),
-                                    (int(x2), int(y2)),
-                                    (74, 222, 128), 3)  # Vert accent
+                    cv2.rectangle(annotated_frame,
+                                  (int(x1), int(y1)),
+                                  (int(x2), int(y2)),
+                                  (74, 222, 128), 3)
 
-                        # Ajouter le label avec la confiance
+                    # Afficher l'ID de tracking si disponible
+                    if track_id is not None:
+                        label = f"ID:{track_id} {confidence:.2f}"
+                    else:
                         label = f"Person {confidence:.2f}"
-                        label_size, _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
+                    label_size, _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
 
-                        # Dessiner le fond du label
-                        cv2.rectangle(annotated_frame,
-                                    (int(x1), int(y1) - label_size[1] - 10),
-                                    (int(x1) + label_size[0], int(y1)),
-                                    (74, 222, 128), -1)  # Fond vert
+                    cv2.rectangle(annotated_frame,
+                                  (int(x1), int(y1) - label_size[1] - 10),
+                                  (int(x1) + label_size[0], int(y1)),
+                                  (74, 222, 128), -1)
 
-                        # Dessiner le texte du label
-                        cv2.putText(annotated_frame, label,
-                                  (int(x1), int(y1) - 5),
-                                  cv2.FONT_HERSHEY_SIMPLEX, 0.6, (11, 15, 31), 2)  # Texte sombre
+                    cv2.putText(annotated_frame, label,
+                                (int(x1), int(y1) - 5),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (11, 15, 31), 2)
 
-            # Écrire le frame annoté dans la vidéo de sortie
             out.write(annotated_frame)
 
-            # Si des détections ont été trouvées dans ce frame, les ajouter
             if frame_boxes:
                 all_detections.append({
                     "frame": frame_number,
@@ -304,15 +302,13 @@ async def detect_people(request: DetectRequest):
 
             frame_number += 1
 
-            # Log de progression tous les 30 frames
             if frame_number % 30 == 0:
                 print(f"Progression : {frame_number}/{total_frames} frames analysés")
 
     finally:
-        # Libérer les ressources
-        cap.release()
         out.release()
         print("✓ Ressources vidéo libérées")
+
 
     if NEEDS_H264_TRANSCODE:
         print("Transcodage H.264 via ffmpeg pour compatibilité navigateur...")
@@ -350,6 +346,13 @@ async def detect_people(request: DetectRequest):
     print("="*80)
     print("FIN DE L'ANALYSE")
     print("="*80 + "\n")
+
+    # Réinitialiser le tracker ByteTrack pour la prochaine analyse
+    # Vérification que la liste n'est pas vide pour éviter IndexError
+    if hasattr(yolo_model, 'predictor') and hasattr(yolo_model.predictor, 'trackers'):
+        if len(yolo_model.predictor.trackers) > 0:
+            yolo_model.predictor.trackers = []
+            print("✓ Tracker ByteTrack réinitialisé")
 
     response_data = {
         "message": "Détection terminée avec succès",
