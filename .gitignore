@@ -106,6 +106,9 @@ ia-service/shared/
 # Fichiers de résultats
 results/
 *.json
+# Exception : garder les fichiers de configuration npm
+!package.json
+!package-lock.json
 
 # Modèles YOLO téléchargés (peuvent être gros)
 *.pt
